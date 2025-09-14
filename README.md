@@ -1,4 +1,4 @@
-## Integrantes activos y colaboradores
+## Integrantes
 
 | Nombre completo                        | Github                |
 |----------------------------------------|-------------------------  |
