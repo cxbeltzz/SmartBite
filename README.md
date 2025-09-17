@@ -1,6 +1,6 @@
 # 🍃 NutriPlan Personalizado
 
-![Logo](./13f09d68-fdf0-4eaf-abd9-a434201b8c11.png)
+![Logo](Nutriplan.png)
 
 ## 👥 Grupo
 **LOS_TELETUBBIES**
