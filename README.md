@@ -6,10 +6,10 @@
 **LOS_TELETUBBIES**
 
 ## 📧 Integrantes y Contacto
-- Nicole Ariadna Celemin Triana – [@nicole1ariadna](https://github.com/nicole1ariadna)  
-- Yeiner Arwawingumu Zapata Vallejo – [@ARWAWINGUMU](https://github.com/ARWAWINGUMU)  
-- Deiber David Gongora Hurtado – [@DeiberD](https://github.com/DeiberD)  
-- Camilo Andres Beltran Zabala – [@cxbeltzz](https://github.com/cxbeltzz)  
+- Nicole Ariadna Celemin Triana – (ncelemin@unal.edu.co)  
+- Yeiner Arwawingumu Zapata Vallejo – (yezapatav@unal.edu.co)  
+- Deiber David Gongora Hurtado – (dgongora@unal.edu.co)  
+- Camilo Andres Beltran Zabala – (cbeltranz@unal.edu.co)  
 
 ## 📖 Descripción del Proyecto
 **SmartBite: Sistema Inteligente de Planificación Nutricional**  
