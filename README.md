@@ -1,4 +1,4 @@
-# 🍃 NutriPlan Personalizado
+# 🍃 SmartBite
 
 ![Logo](Gemini_Generated_Image_qv2u1gqv2u1gqv2u.png)
 
