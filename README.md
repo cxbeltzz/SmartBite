@@ -1,6 +1,6 @@
 # 🍃 NutriPlan Personalizado
 
-![Logo](Nutriplan.png)
+![Logo](Gemini_Generated_Image_qv2u1gqv2u1gqv2u.png)
 
 ## 👥 Grupo
 **LOS_TELETUBBIES**
@@ -12,9 +12,9 @@
 - Camilo Andres Beltran Zabala – [@cxbeltzz](https://github.com/cxbeltzz)  
 
 ## 📖 Descripción del Proyecto
-**NutriPlan Personalizado: Sistema Inteligente de Planificación Nutricional**  
+**SmartBite: Sistema Inteligente de Planificación Nutricional**  
 
-NutriPlan es una aplicación web diseñada para generar **planes nutricionales personalizados** basados en las características individuales y objetivos de salud de cada usuario.  
+SmartBite es una aplicación web diseñada para generar **planes nutricionales personalizados** basados en las características individuales y objetivos de salud de cada usuario.  
 
 Con un sistema de registro seguro, perfiles personalizados, algoritmos de cálculo nutricional y un motor de recomendación basado en **K-Nearest Neighbors (KNN)**, la plataforma ofrece planes adaptados que consideran datos biométricos, nivel de actividad física, preferencias alimentarias y restricciones dietéticas.  
 
