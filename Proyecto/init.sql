@@ -1,248 +1,234 @@
+CREATE SCHEMA IF NOT EXISTS "public";
 
--- Lookup / Reference tables
+CREATE  TABLE "public".activity_level ( 
+	id                   smallint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	code                 varchar(32)  NOT NULL  ,
+	description          text    ,
+	CONSTRAINT activity_level_pkey PRIMARY KEY ( id ),
+	CONSTRAINT activity_level_code_key UNIQUE ( code ) 
+ );
 
-CREATE TABLE activity_level (
-    id SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    code VARCHAR(32) NOT NULL UNIQUE,
-    description TEXT
-);
+CREATE  TABLE "public".dietary_restriction_type ( 
+	id                   smallint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	code                 varchar(64)  NOT NULL  ,
+	description          text    ,
+	CONSTRAINT dietary_restriction_type_pkey PRIMARY KEY ( id ),
+	CONSTRAINT dietary_restriction_type_code_key UNIQUE ( code ) 
+ );
 
-CREATE TABLE objective_type (
-    id SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    code VARCHAR(32) NOT NULL UNIQUE,
-    description TEXT
-);
+CREATE  TABLE "public".food_item ( 
+	id                   bigint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	name                 varchar(256)  NOT NULL  ,
+	description          text    ,
+	created_at           timestamptz DEFAULT now() NOT NULL  ,
+	CONSTRAINT food_item_pkey PRIMARY KEY ( id ),
+	CONSTRAINT food_item_name_key UNIQUE ( name ) 
+ );
 
-CREATE TABLE gender_type (
-    id SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    code VARCHAR(16) NOT NULL UNIQUE,
-    description TEXT
-);
+CREATE INDEX idx_food_item_name ON "public".food_item  ( name );
 
-CREATE TABLE dietary_restriction_type (
-    id SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    code VARCHAR(64) NOT NULL UNIQUE,
-    description TEXT
-);
+CREATE  TABLE "public".gender_type ( 
+	id                   smallint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	code                 varchar(16)  NOT NULL  ,
+	description          text    ,
+	CONSTRAINT gender_type_pkey PRIMARY KEY ( id ),
+	CONSTRAINT gender_type_code_key UNIQUE ( code ) 
+ );
 
-CREATE TABLE meal_type (
-    id SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    code VARCHAR(32) NOT NULL UNIQUE,
-    description TEXT
-);
+CREATE  TABLE "public".meal_type ( 
+	id                   smallint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	code                 varchar(32)  NOT NULL  ,
+	description          text    ,
+	CONSTRAINT meal_type_pkey PRIMARY KEY ( id ),
+	CONSTRAINT meal_type_code_key UNIQUE ( code ) 
+ );
 
+CREATE  TABLE "public".objective_type ( 
+	id                   smallint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	code                 varchar(32)  NOT NULL  ,
+	description          text    ,
+	CONSTRAINT objective_type_pkey PRIMARY KEY ( id ),
+	CONSTRAINT objective_type_code_key UNIQUE ( code ) 
+ );
 
+CREATE  TABLE "public".recipe ( 
+	id                   bigint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	title                varchar(300)  NOT NULL  ,
+	description          text    ,
+	servings             numeric(6,2) DEFAULT 1 NOT NULL  ,
+	calories_per_serving numeric(8,2)    ,
+	protein_g_per_serving numeric(8,2)    ,
+	carbs_g_per_serving  numeric(8,2)    ,
+	fats_g_per_serving   numeric(8,2)    ,
+	saturatedfats_g_per_serving numeric(8,2)    ,
+	cholesterol_g_per_serving numeric(8,2)    ,
+	sodium_g_per_serving numeric(8,2)    ,
+	fiber_g_per_serving  numeric(8,2)    ,
+	sugar_g_per_serving  numeric(8,2)    ,
+	CONSTRAINT recipe_pkey PRIMARY KEY ( id ),
+	CONSTRAINT recipe_title_key UNIQUE ( title ) 
+ );
 
--- Core user & auth tables
+CREATE INDEX idx_recipe_title ON "public".recipe  ( title );
 
-CREATE TABLE "user_account" (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    email VARCHAR(320) NOT NULL UNIQUE,
-    full_name VARCHAR(200),
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    is_active BOOLEAN NOT NULL DEFAULT TRUE
-);
+CREATE  TABLE "public".recipe_ingredient ( 
+	recipe_id            bigint  NOT NULL  ,
+	food_item_id         bigint  NOT NULL  ,
+	quantity             numeric(10,3)  NOT NULL  ,
+	unit                 varchar(32)  NOT NULL  ,
+	CONSTRAINT recipe_ingredient_pkey PRIMARY KEY ( recipe_id, food_item_id ),
+	CONSTRAINT recipe_ingredient_food_item_id_fkey FOREIGN KEY ( food_item_id ) REFERENCES "public".food_item( id ) ON DELETE RESTRICT  ,
+	CONSTRAINT recipe_ingredient_recipe_id_fkey FOREIGN KEY ( recipe_id ) REFERENCES "public".recipe( id ) ON DELETE CASCADE  
+ );
 
-CREATE TABLE auth_credential (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
-    password_hash TEXT NOT NULL,
-    salt TEXT,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    last_login_at TIMESTAMP WITH TIME ZONE,
-    UNIQUE(user_id)
-);
+CREATE  TABLE "public".user_account ( 
+	id                   bigint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	email                varchar(320)  NOT NULL  ,
+	full_name            varchar(200)    ,
+	created_at           timestamptz DEFAULT now() NOT NULL  ,
+	is_active            boolean DEFAULT true NOT NULL  ,
+	CONSTRAINT user_account_pkey PRIMARY KEY ( id ),
+	CONSTRAINT user_account_email_key UNIQUE ( email ) 
+ );
 
-CREATE TABLE email_verification (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
-    token VARCHAR(128) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    verified_at TIMESTAMP WITH TIME ZONE
-);
+CREATE INDEX idx_user_email ON "public".user_account  ( email );
 
-CREATE TABLE two_factor (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
-    totp_secret TEXT NOT NULL,
-    enabled BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
+CREATE  TABLE "public".user_activity ( 
+	user_id              bigint  NOT NULL  ,
+	activity_level_id    smallint  NOT NULL  ,
+	effective_from       date DEFAULT CURRENT_DATE NOT NULL  ,
+	effective_to         date    ,
+	CONSTRAINT user_activity_pkey PRIMARY KEY ( user_id, effective_from ),
+	CONSTRAINT user_activity_activity_level_id_fkey FOREIGN KEY ( activity_level_id ) REFERENCES "public".activity_level( id )   ,
+	CONSTRAINT user_activity_user_id_fkey FOREIGN KEY ( user_id ) REFERENCES "public".user_account( id ) ON DELETE CASCADE  
+ );
 
+CREATE  TABLE "public".user_dietary_restriction ( 
+	user_id              bigint  NOT NULL  ,
+	restriction_id       smallint  NOT NULL  ,
+	noted_at             timestamptz DEFAULT now() NOT NULL  ,
+	CONSTRAINT user_dietary_restriction_pkey PRIMARY KEY ( user_id, restriction_id ),
+	CONSTRAINT user_dietary_restriction_restriction_id_fkey FOREIGN KEY ( restriction_id ) REFERENCES "public".dietary_restriction_type( id ) ON DELETE RESTRICT  ,
+	CONSTRAINT user_dietary_restriction_user_id_fkey FOREIGN KEY ( user_id ) REFERENCES "public".user_account( id ) ON DELETE CASCADE  
+ );
 
--- Profile & preferences
+CREATE  TABLE "public".user_food_preference ( 
+	user_id              bigint  NOT NULL  ,
+	food_item_id         bigint  NOT NULL  ,
+	preference           smallint  NOT NULL  ,
+	noted_at             timestamptz DEFAULT now() NOT NULL  ,
+	CONSTRAINT user_food_preference_pkey PRIMARY KEY ( user_id, food_item_id ),
+	CONSTRAINT user_food_preference_food_item_id_fkey FOREIGN KEY ( food_item_id ) REFERENCES "public".food_item( id ) ON DELETE RESTRICT  ,
+	CONSTRAINT user_food_preference_user_id_fkey FOREIGN KEY ( user_id ) REFERENCES "public".user_account( id ) ON DELETE CASCADE  
+ );
 
-CREATE TABLE user_profile (
-    user_id BIGINT PRIMARY KEY REFERENCES user_account(id) ON DELETE CASCADE,
-    birth_date DATE,
-    gender_id SMALLINT REFERENCES gender_type(id) ON DELETE SET NULL,
-    height_cm NUMERIC(5,2),
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
+CREATE  TABLE "public".user_objective ( 
+	user_id              bigint  NOT NULL  ,
+	objective_type_id    smallint  NOT NULL  ,
+	target_weight_kg     numeric(6,2)    ,
+	start_date           date DEFAULT CURRENT_DATE NOT NULL  ,
+	target_date          date    ,
+	created_at           timestamptz DEFAULT now() NOT NULL  ,
+	updated_at           timestamptz DEFAULT now() NOT NULL  ,
+	CONSTRAINT user_objective_pkey PRIMARY KEY ( user_id ),
+	CONSTRAINT user_objective_objective_type_id_fkey FOREIGN KEY ( objective_type_id ) REFERENCES "public".objective_type( id )   ,
+	CONSTRAINT user_objective_user_id_fkey FOREIGN KEY ( user_id ) REFERENCES "public".user_account( id ) ON DELETE CASCADE  
+ );
 
-CREATE TABLE user_activity (
-    user_id BIGINT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
-    activity_level_id SMALLINT NOT NULL REFERENCES activity_level(id) ON DELETE RESTRICT,
-    effective_from DATE NOT NULL DEFAULT CURRENT_DATE,
-    effective_to DATE,
-    PRIMARY KEY (user_id, activity_level_id, effective_from),
-    CHECK (effective_to IS NULL OR effective_to >= effective_from)
-);
+CREATE  TABLE "public".user_profile ( 
+	user_id              bigint  NOT NULL  ,
+	birth_date           date    ,
+	gender_id            smallint    ,
+	height_cm            numeric(5,2)    ,
+	created_at           timestamptz DEFAULT now() NOT NULL  ,
+	updated_at           timestamptz DEFAULT now() NOT NULL  ,
+	CONSTRAINT user_profile_pkey PRIMARY KEY ( user_id ),
+	CONSTRAINT user_profile_gender_id_fkey FOREIGN KEY ( gender_id ) REFERENCES "public".gender_type( id )   ,
+	CONSTRAINT user_profile_user_id_fkey FOREIGN KEY ( user_id ) REFERENCES "public".user_account( id ) ON DELETE CASCADE  
+ );
 
-CREATE TABLE user_objective (
-    user_id BIGINT PRIMARY KEY REFERENCES user_account(id) ON DELETE CASCADE,
-    objective_type_id SMALLINT NOT NULL REFERENCES objective_type(id) ON DELETE RESTRICT,
-    target_weight_kg NUMERIC(6,2),
-    start_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    target_date DATE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
+CREATE  TABLE "public".auth_credential ( 
+	id                   bigint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	user_id              bigint  NOT NULL  ,
+	password_hash        text  NOT NULL  ,
+	salt                 text    ,
+	created_at           timestamptz DEFAULT now() NOT NULL  ,
+	last_login_at        timestamptz    ,
+	CONSTRAINT auth_credential_pkey PRIMARY KEY ( id ),
+	CONSTRAINT auth_credential_user_id_key UNIQUE ( user_id ) ,
+	CONSTRAINT auth_credential_user_id_fkey FOREIGN KEY ( user_id ) REFERENCES "public".user_account( id ) ON DELETE CASCADE  
+ );
 
+CREATE  TABLE "public".plan ( 
+	id                   bigint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	user_id              bigint  NOT NULL  ,
+	title                varchar(200)    ,
+	created_at           timestamptz DEFAULT now() NOT NULL  ,
+	start_date           date    ,
+	end_date             date    ,
+	total_calories_per_day numeric(9,2)    ,
+	total_protein_g_per_day numeric(9,2)    ,
+	notes                text    ,
+	CONSTRAINT plan_pkey PRIMARY KEY ( id ),
+	CONSTRAINT plan_user_id_fkey FOREIGN KEY ( user_id ) REFERENCES "public".user_account( id ) ON DELETE CASCADE  
+ );
 
+CREATE INDEX idx_plan_user ON "public".plan  ( user_id );
 
--- Food items & preferences
+CREATE  TABLE "public".plan_day ( 
+	id                   bigint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	plan_id              bigint  NOT NULL  ,
+	day_of_week          smallint  NOT NULL  ,
+	CONSTRAINT plan_day_pkey PRIMARY KEY ( id ),
+	CONSTRAINT plan_day_plan_id_day_of_week_key UNIQUE ( plan_id, day_of_week ) ,
+	CONSTRAINT plan_day_plan_id_fkey FOREIGN KEY ( plan_id ) REFERENCES "public".plan( id ) ON DELETE CASCADE  
+ );
 
+ALTER TABLE "public".plan_day ADD CONSTRAINT plan_day_day_of_week_check CHECK ( ((day_of_week >= 1) AND (day_of_week <= 7)) );
 
-CREATE TABLE food_item (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name VARCHAR(256) NOT NULL,
-    description TEXT,
-    unit VARCHAR(32) NOT NULL DEFAULT 'g',
-    calories_per_100g NUMERIC(10,3),
-    protein_g_per_100g NUMERIC(10,3),
-    carbs_g_per_100g NUMERIC(10,3),
-    fats_g_per_100g NUMERIC(10,3),
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    UNIQUE (name)
-);
+CREATE INDEX idx_plan_day_planid ON "public".plan_day  ( plan_id, day_of_week );
 
-CREATE TABLE user_food_preference (
-    user_id BIGINT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
-    food_item_id BIGINT NOT NULL REFERENCES food_item(id) ON DELETE RESTRICT,
-    preference SMALLINT NOT NULL,
-    noted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    PRIMARY KEY (user_id, food_item_id),
-    CHECK (preference IN (-1,0,1))
-);
+CREATE  TABLE "public".plan_meal ( 
+	id                   bigint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	plan_day_id          bigint  NOT NULL  ,
+	meal_type_id         smallint  NOT NULL  ,
+	meal_order           smallint  NOT NULL  ,
+	notes                text    ,
+	CONSTRAINT plan_meal_pkey PRIMARY KEY ( id ),
+	CONSTRAINT plan_meal_plan_day_id_meal_type_id_meal_order_key UNIQUE ( plan_day_id, meal_type_id, meal_order ) ,
+	CONSTRAINT plan_meal_meal_type_id_fkey FOREIGN KEY ( meal_type_id ) REFERENCES "public".meal_type( id )   ,
+	CONSTRAINT plan_meal_plan_day_id_fkey FOREIGN KEY ( plan_day_id ) REFERENCES "public".plan_day( id ) ON DELETE CASCADE  
+ );
 
-CREATE TABLE user_dietary_restriction (
-    user_id BIGINT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
-    restriction_id SMALLINT NOT NULL REFERENCES dietary_restriction_type(id) ON DELETE RESTRICT,
-    noted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    PRIMARY KEY (user_id, restriction_id)
-);
+CREATE  TABLE "public".plan_meal_recipe ( 
+	plan_meal_id         bigint  NOT NULL  ,
+	recipe_id            bigint  NOT NULL  ,
+	servings             numeric(6,2) DEFAULT 1 NOT NULL  ,
+	CONSTRAINT plan_meal_recipe_pkey PRIMARY KEY ( plan_meal_id, recipe_id ),
+	CONSTRAINT plan_meal_recipe_plan_meal_id_fkey FOREIGN KEY ( plan_meal_id ) REFERENCES "public".plan_meal( id ) ON DELETE CASCADE  ,
+	CONSTRAINT plan_meal_recipe_recipe_id_fkey FOREIGN KEY ( recipe_id ) REFERENCES "public".recipe( id ) ON DELETE RESTRICT  
+ );
 
+CREATE  TABLE "public".progress_measurement ( 
+	id                   bigint  NOT NULL GENERATED ALWAYS AS IDENTITY ,
+	user_id              bigint  NOT NULL  ,
+	weight_kg            numeric(6,2)    ,
+	body_fat_percent     numeric(5,2)    ,
+	notes                text    ,
+	CONSTRAINT progress_measurement_pkey PRIMARY KEY ( id ),
+	CONSTRAINT progress_measurement_user_id_fkey FOREIGN KEY ( user_id ) REFERENCES "public".user_account( id ) ON DELETE CASCADE  
+ );
 
--- Recipes and composition
+CREATE INDEX idx_progress_user_date ON "public".progress_measurement  ( user_id );
 
-CREATE TABLE recipe (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    title VARCHAR(300) NOT NULL,
-    description TEXT,
-    servings NUMERIC(6,2) NOT NULL DEFAULT 1,
-    calories_per_serving NUMERIC(10,3),
-    protein_g_per_serving NUMERIC(10,3),
-    carbs_g_per_serving NUMERIC(10,3),
-    fats_g_per_serving NUMERIC(10,3)
-);
-
-CREATE TABLE recipe_ingredient (
-    recipe_id BIGINT NOT NULL REFERENCES recipe(id) ON DELETE CASCADE,
-    food_item_id BIGINT NOT NULL REFERENCES food_item(id) ON DELETE RESTRICT,
-    quantity NUMERIC(12,4) NOT NULL,
-    unit VARCHAR(32) NOT NULL,
-    PRIMARY KEY (recipe_id, food_item_id)
-);
-
-
--- Plans, days, meals and composition
-
-CREATE TABLE plan (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
-    title VARCHAR(200),
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    start_date DATE,
-    end_date DATE,
-    total_calories_per_day NUMERIC(9,2),
-    total_protein_g_per_day NUMERIC(9,2),
-    notes TEXT
-);
-
-CREATE TABLE plan_day (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    plan_id BIGINT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
-    day_of_week SMALLINT NOT NULL CHECK (day_of_week BETWEEN 1 AND 7),
-    UNIQUE (plan_id, day_of_week)
-);
-
-CREATE TABLE plan_meal (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    plan_day_id BIGINT NOT NULL REFERENCES plan_day(id) ON DELETE CASCADE,
-    meal_type_id SMALLINT NOT NULL REFERENCES meal_type(id) ON DELETE RESTRICT,
-    meal_order SMALLINT NOT NULL CHECK (meal_order > 0),
-    notes TEXT,
-    UNIQUE (plan_day_id, meal_type_id, meal_order)
-);
-
-CREATE TABLE plan_meal_recipe (
-    plan_meal_id BIGINT NOT NULL REFERENCES plan_meal(id) ON DELETE CASCADE,
-    recipe_id BIGINT NOT NULL REFERENCES recipe(id) ON DELETE RESTRICT,
-    servings NUMERIC(6,2) NOT NULL DEFAULT 1,
-    PRIMARY KEY (plan_meal_id, recipe_id)
-);
-
-CREATE TABLE user_saved_plan (
-    user_id BIGINT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
-    plan_id BIGINT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
-    saved_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    is_favorite BOOLEAN NOT NULL DEFAULT FALSE,
-    PRIMARY KEY (user_id, plan_id)
-);
-
-
--- Progress, adherence y feedback
-
-CREATE TABLE progress_measurement (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
-    measured_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    weight_kg NUMERIC(6,2),
-    body_fat_percent NUMERIC(5,2),
-    waist_cm NUMERIC(6,2),
-    hip_cm NUMERIC(6,2),
-    chest_cm NUMERIC(6,2),
-    notes TEXT
-);
-
-CREATE TABLE plan_feedback (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
-    plan_id BIGINT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
-    rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    comment TEXT,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-CREATE TABLE plan_adherence (
-    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    plan_id BIGINT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
-    user_id BIGINT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
-    date DATE NOT NULL,
-    adherence_percent NUMERIC(5,2) CHECK (adherence_percent BETWEEN 0 AND 100),
-    notes TEXT,
-    UNIQUE (plan_id, user_id, date)
-);
+CREATE  TABLE "public".user_saved_plan ( 
+	user_id              bigint  NOT NULL  ,
+	plan_id              bigint  NOT NULL  ,
+	saved_at             timestamptz DEFAULT now() NOT NULL  ,
+	is_favorite          boolean DEFAULT false NOT NULL  ,
+	CONSTRAINT user_saved_plan_pkey PRIMARY KEY ( user_id, plan_id ),
+	CONSTRAINT user_saved_plan_plan_id_fkey FOREIGN KEY ( plan_id ) REFERENCES "public".plan( id ) ON DELETE CASCADE  ,
+	CONSTRAINT user_saved_plan_user_id_fkey FOREIGN KEY ( user_id ) REFERENCES "public".user_account( id ) ON DELETE CASCADE  
+ );
 
 
--- Indices
-
-CREATE INDEX idx_recipe_title ON recipe (title);
-CREATE INDEX idx_food_item_name ON food_item (name);
-CREATE INDEX idx_user_email ON user_account (email);
-CREATE INDEX idx_progress_user_date ON progress_measurement (user_id, measured_at DESC);
-CREATE INDEX idx_plan_user ON plan (user_id);
-CREATE INDEX idx_plan_day_planid ON plan_day (plan_id, day_of_week);
