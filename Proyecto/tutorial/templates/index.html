@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="space-y-6">
+    <h1 class="text-3xl font-bold">Hola Mundo: Flask + PostgreSQL + Tailwind</h1>
+    <p class="text-slate-300">Este tutorial muestra la integración de Flask con una base de datos PostgreSQL.</p>
+</section>
+
+<section class="bg-surface/90 border border-slate-700 rounded-2xl p-6 space-y-4">
+    <h2 class="text-xl font-semibold">Recetas almacenadas en PostgreSQL</h2>
+    <p class="text-sm text-slate-400">Se insertan automáticamente tres recetas de ejemplo al iniciar la aplicación.</p>
+    <table class="w-full text-left text-sm">
+        <thead class="text-slate-400 uppercase text-xs">
+            <tr>
+                <th class="py-2">ID</th>
+                <th class="py-2">Nombre</th>
+                <th class="py-2">Calorías</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for recipe in recipes %}
+            <tr class="border-t border-slate-700">
+                <td class="py-2">{{ recipe.recipe_id }}</td>
+                <td class="py-2">{{ recipe.name }}</td>
+                <td class="py-2">{{ recipe.calories }} kcal</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+
+<section class="bg-surface/90 border border-slate-700 rounded-2xl p-6 space-y-4 text-sm text-slate-300">
+    <h2 class="text-lg font-semibold">Pasos para que funcione perfectamente la aplicacion</h2>
+    <ol class="list-decimal list-inside space-y-2">
+        <li>Configurar <code>POSTGRES_DSN</code> para apuntar a la base de datos de PostgreSQL.</li>
+        <li>Ejecuta <code>python ./database.py</code> para crear e inicializar la tabla.</li>
+        <li>Arranca la app: <code>python ./app.py</code>.</li>
+        <li>Visita <code>http://127.0.0.1:5000/</code> en el navegador y observa que ya se encuentra funcionando programa integrando las herramientas Flask, PostgreSQL y TailWind sin ningun inconveniente.</li>
+    </ol>
+</section>
+{% endblock %}
