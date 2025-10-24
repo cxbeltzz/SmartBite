@@ -4,10 +4,11 @@ from typing import Iterable
 
 import psycopg2
 from psycopg2.extensions import connection as PGConnection
+from urllib.parse import urlparse
 
 
 
-POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://postgres:password@localhost:5432/TUTORIAL_DEMO")
+POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://postgres:password@localhost:5432/TUTORIAL")
 
 EXPECTED_COLUMNS = [
     "recipe_id",
@@ -135,6 +136,37 @@ def get_connection() -> PGConnection:
     return psycopg2.connect(POSTGRES_DSN)
 
 
+def ensure_database_exists() -> None:
+    #Create the database named in POSTGRES_DSN if it doesn't exist
+    try:
+        parsed = urlparse(POSTGRES_DSN)
+        dbname = parsed.path[1:] if parsed.path and parsed.path.startswith("/") else parsed.path
+        if not dbname:
+            return
+
+        user = parsed.username or ''
+        password = parsed.password or ''
+        host = parsed.hostname or 'localhost'
+        port = parsed.port or 5432
+
+        admin_dsn = f"postgresql://{user}:{password}@{host}:{port}/postgres"
+
+        with psycopg2.connect(admin_dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (dbname,))
+                exists = cur.fetchone() is not None
+                if not exists:
+                    cur.execute(f'CREATE DATABASE "{dbname}";')
+                    conn.commit()
+    except Exception:
+        try:
+            import traceback
+
+            traceback.print_exc()
+        except Exception:
+            pass
+
+
 def _ensure_schema(cur) -> None:
     cur.execute(
         """
@@ -173,6 +205,8 @@ def fetch_all_recipes() -> list[Recipe]:
 
 
 def ensure_seed_data() -> None:
+    # Ensure the target database exists before trying to create tables inside it.
+    ensure_database_exists()
     initialize_table()
     if not fetch_all_recipes():
         insert_sample_data(SEED_RECIPES)
