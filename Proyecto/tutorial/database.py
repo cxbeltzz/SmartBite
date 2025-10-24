@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from typing import Iterable
+from typing import ClassVar, Iterable
 
 import psycopg2
 from psycopg2.extensions import connection as PGConnection
@@ -132,10 +132,6 @@ SEED_RECIPES: tuple[tuple[str, float, float, float, float, float, float, float, 
 )
 
 
-def get_connection() -> PGConnection:
-    return psycopg2.connect(POSTGRES_DSN)
-
-
 def ensure_database_exists() -> None:
     #Create the database named in POSTGRES_DSN if it doesn't exist
     try:
@@ -167,6 +163,30 @@ def ensure_database_exists() -> None:
             pass
 
 
+class PostgresConnectionSingleton:
+    """Singleton in charge of providing a single shared Postgres connection."""
+
+    _connection: ClassVar[PGConnection | None] = None
+
+    @classmethod
+    def get_connection(cls) -> PGConnection:
+        if cls._connection is None or cls._connection.closed:
+            ensure_database_exists()
+            cls._connection = psycopg2.connect(POSTGRES_DSN)
+            cls._connection.autocommit = True
+        return cls._connection
+
+    @classmethod
+    def reset(cls) -> None:
+        if cls._connection and not cls._connection.closed:
+            cls._connection.close()
+        cls._connection = None
+
+
+def get_connection() -> PGConnection:
+    return PostgresConnectionSingleton.get_connection()
+
+
 def _ensure_schema(cur) -> None:
     cur.execute(
         """
@@ -184,28 +204,28 @@ def _ensure_schema(cur) -> None:
 
 
 def initialize_table() -> None:
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            _ensure_schema(cur)
+    conn = get_connection()
+    with conn.cursor() as cur:
+        _ensure_schema(cur)
 
 
 def insert_sample_data(samples: Iterable[tuple[str, float, float, float, float, float, float, float, float, float]]) -> None:
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            for sample in samples:
-                cur.execute(INSERT_SQL, sample)
+    conn = get_connection()
+    with conn.cursor() as cur:
+        for sample in samples:
+            cur.execute(INSERT_SQL, sample)
 
 
 def fetch_all_recipes() -> list[Recipe]:
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(SELECT_ALL_SQL)
-            rows = cur.fetchall()
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute(SELECT_ALL_SQL)
+        rows = cur.fetchall()
     return [Recipe(*row) for row in rows]
 
 
 def ensure_seed_data() -> None:
-    # Ensure the target database exists before trying to create tables inside it.
+    # Ensure the target database exists before trying to create tables inside it
     ensure_database_exists()
     initialize_table()
     if not fetch_all_recipes():
