@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="text-4xl font-bold text-center mb-10">Automatic Diet Recommendation</h1>
+<form id="recommendation-form" method="post" class="bg-surface/80 backdrop-blur rounded-2xl border border-slate-700 shadow-xl p-8 space-y-6">
+    <p class="text-slate-300">Modify the values and click the Generate button.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+            <label class="block text-sm font-medium mb-2" for="age">Age</label>
+            <input id="age" name="age" type="number" min="10" max="90" value="{{ defaults.age }}" class="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-2" required>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-2" for="height_cm">Height (cm)</label>
+            <input id="height_cm" name="height_cm" type="number" step="0.1" min="120" max="220" value="{{ defaults.height_cm }}" class="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-2" required>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-2" for="weight_kg">Weight (kg)</label>
+            <input id="weight_kg" name="weight_kg" type="number" step="0.1" min="40" max="200" value="{{ defaults.weight_kg }}" class="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-2" required>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <fieldset>
+            <legend class="block text-sm font-medium mb-2">Gender</legend>
+            <div class="flex items-center gap-6">
+                <label class="flex items-center gap-2">
+                    <input type="radio" name="gender" value="male" {% if defaults.gender == 'male' %}checked{% endif %} class="text-sky-500">
+                    <span>Male</span>
+                </label>
+                <label class="flex items-center gap-2">
+                    <input type="radio" name="gender" value="female" {% if defaults.gender == 'female' %}checked{% endif %} class="text-sky-500">
+                    <span>Female</span>
+                </label>
+            </div>
+        </fieldset>
+        <div>
+            <label class="block text-sm font-medium mb-2" for="plan">Choose your weight plan</label>
+            <select id="plan" name="plan" class="w-full rounded-lg bg-slate-800 border border-slate-700 px-4 py-2">
+                {% for key, (label, _, _) in plans.items() %}
+                <option value="{{ key }}" {% if defaults.plan == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div>
+        <label class="block text-sm font-medium mb-2" for="activity">Activity</label>
+        <div class="space-y-2">
+            <input type="range" id="activity" name="activity_index" min="0" max="{{ activity_order|length - 1 }}" value="{{ activity_index }}" class="w-full h-2 rounded-lg bg-slate-800 accent-sky-500">
+            <div class="flex justify-between text-xs text-slate-400">
+                {% for key in activity_order %}
+                <span data-activity-option="{{ loop.index0 }}">{{ activities[key][0] }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        <p id="activity-selected" class="text-xs text-slate-400 mt-1">Selected: {{ activities[defaults.activity][0] }}</p>
+    </div>
+    <div>
+        <label class="block text-sm font-medium mb-2" for="meals_per_day">Meals per day: <span id="meals-value" class="font-semibold">{{ defaults.meals_per_day }}</span></label>
+        <input type="range" id="meals_per_day" name="meals_per_day" min="3" max="5" value="{{ defaults.meals_per_day }}" class="w-full h-2 rounded-lg bg-slate-800 accent-sky-500">
+    </div>
+    <div class="pt-4">
+        <button id="generate-button" type="submit" class="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-500 transition-colors text-white px-6 py-3 rounded-xl font-semibold">
+            Generate
+        </button>
+    </div>
+    {% if error %}
+    <p class="text-red-400">{{ error }}</p>
+    {% endif %}
+</form>
+
+<div id="loading-overlay" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-slate-900/80 backdrop-blur">
+    <div class="flex flex-col items-center gap-4 bg-slate-800 border border-slate-700 px-8 py-6 rounded-2xl shadow-xl">
+        <div class="h-12 w-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-sm text-slate-300">Generating recommendation…</p>
+    </div>
+</div>
+
+{% if result %}
+<section class="mt-10 grid gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-surface/80 border border-slate-700 rounded-2xl p-6">
+            <h2 class="text-lg font-semibold mb-2">BMI Calculator</h2>
+            <p class="text-3xl font-bold">{{ result.bmi }} kg/m²</p>
+            <p class="text-emerald-400 mt-1">{{ result.bmi_status }}</p>
+        </div>
+        {% for key, data in result.targets.items() %}
+        <div class="bg-surface/80 border border-slate-700 rounded-2xl p-6">
+            <h3 class="text-sm uppercase tracking-wide text-slate-400">{{ data.label }}</h3>
+            <p class="text-2xl font-semibold mt-2">{{ data.calories }} Calories/day</p>
+            {% if data.delta_kg != 0 %}
+            <p class="text-slate-400 mt-1">{{ data.delta_kg }} kg/week</p>
+            {% else %}
+            <p class="text-slate-500 mt-1">Maintain current weight</p>
+            {% endif %}
+            {% if key == result.selected_plan_key %}
+            <span class="inline-block mt-3 text-xs uppercase tracking-wide text-emerald-400">Selected</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    <div class="bg-surface/80 border border-slate-700 rounded-2xl p-6">
+        <h2 class="text-xl font-semibold mb-4">Diet Recommendations</h2>
+        <p class="text-sm text-slate-400 mb-6">Meals per day: {{ result.meals_per_day }} | Plan: {{ result.targets[result.selected_plan_key].label }}</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {% for meal_name, recipes in result.recommendations.items() %}
+            <div>
+                <h3 class="text-lg font-semibold mb-4 uppercase">{{ meal_name }}</h3>
+                <div class="space-y-4">
+                    {% for recipe in recipes %}
+                    <details class="bg-slate-800/70 border border-slate-700 rounded-xl">
+                        <summary class="cursor-pointer px-4 py-3 font-medium flex justify-between items-center">
+                            <span>{{ recipe.Name }}</span>
+                            <span class="text-xs text-slate-400">{{ recipe.Calories|round(0) }} kcal</span>
+                        </summary>
+                        <div class="px-4 py-3 space-y-3 text-sm text-slate-300">
+                            <div>
+                                <p class="text-slate-400 uppercase text-xs mb-1">Ingredients</p>
+                                <ul class="list-disc list-inside space-y-1">
+                                    {% for ingredient in recipe.RecipeIngredientParts %}
+                                    <li>{{ ingredient }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="text-slate-400 uppercase text-xs mb-1">Instructions</p>
+                                <ol class="list-decimal list-inside space-y-1">
+                                    {% for step in recipe.RecipeInstructions %}
+                                    <li>{{ step }}</li>
+                                    {% endfor %}
+                                </ol>
+                            </div>
+                        </div>
+                    </details>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="mt-6 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-xl px-4 py-3">
+            Recommendation generated successfully!
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<script>
+    const form = document.getElementById('recommendation-form');
+    const generateButton = document.getElementById('generate-button');
+    const overlay = document.getElementById('loading-overlay');
+    if (form && overlay) {
+        form.addEventListener('submit', () => {
+            overlay.classList.remove('hidden');
+            if (generateButton) {
+                generateButton.disabled = true;
+                generateButton.classList.add('opacity-70', 'cursor-not-allowed');
+            }
+        });
+    }
+
+    const mealsSlider = document.getElementById('meals_per_day');
+    const mealsValue = document.getElementById('meals-value');
+    if (mealsSlider && mealsValue) {
+        mealsSlider.addEventListener('input', () => {
+            mealsValue.textContent = mealsSlider.value;
+        });
+    }
+    const activityInput = document.getElementById('activity');
+    const activitySelected = document.getElementById('activity-selected');
+    if (activityInput && activitySelected) {
+        const optionLabels = document.querySelectorAll('[data-activity-option]');
+        activityInput.addEventListener('input', () => {
+            const idx = parseInt(activityInput.value, 10);
+            optionLabels.forEach((label, index) => {
+                label.classList.toggle('text-sky-400', index === idx);
+            });
+            const match = Array.from(optionLabels).find((label) => parseInt(label.dataset.activityOption, 10) === idx);
+            if (match) {
+                activitySelected.textContent = `Selected: ${match.textContent}`;
+            }
+        });
+        activityInput.dispatchEvent(new Event('input'));
+    }
+</script>
+{% endblock %}
