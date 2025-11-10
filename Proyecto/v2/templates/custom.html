@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8">
+  <section class="rounded-3xl border border-white/10 bg-white/5 px-8 py-10 shadow-[0_40px_120px_-60px_rgba(167,139,250,0.7)] backdrop-blur">
+    <header class="space-y-4">
+      <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-accentSoft">
+        <span class="inline-block h-2 w-2 rounded-full bg-accentSoft"></span>
+        Custom Match
+      </span>
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div class="space-y-2">
+          <h1 class="text-3xl font-semibold text-white">Crea tu recomendación a medida</h1>
+          <p class="text-sm text-slate-300/80">Ajusta manualmente los valores nutricionales objetivo y filtra por ingredientes para descubrir recetas similares.</p>
+        </div>
+        <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-accentSoft transition hover:text-accent">← Volver al panel principal</a>
+      </div>
+    </header>
+  </section>
+
+  <form method="post" class="space-y-8 rounded-3xl border border-white/10 bg-white/5 px-8 py-8 shadow-[0_40px_120px_-60px_rgba(129,140,248,0.7)] backdrop-blur">
+    <div class="space-y-6">
+      <h2 class="text-lg font-semibold text-white">Valores nutricionales objetivo</h2>
+      <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {% for field in nutrient_fields %}
+        <div class="space-y-3">
+          <div class="flex items-center justify-between text-xs text-slate-300/80">
+            <label for="{{ field.name }}" class="font-semibold uppercase tracking-wide">{{ field.label }}</label>
+            <span data-value-badge="{{ field.name }}" data-unit="{{ field.unit }}" data-precision="{{ field.precision }}" class="rounded-full bg-white/10 px-3 py-1 font-semibold text-white">{{ defaults[field.name]|round(field.precision) }} {{ field.unit }}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <input type="range" id="{{ field.name }}" name="{{ field.name }}" min="{{ field.min }}" max="{{ field.max }}" step="{{ field.step }}" value="{{ defaults[field.name] }}" class="h-2 w-full rounded-full bg-white/20 accent-accent">
+            <input type="number" name="{{ field.name }}_number" data-linked-input="{{ field.name }}" value="{{ defaults[field.name]|round(field.precision) }}" min="{{ field.min }}" max="{{ field.max }}" step="{{ field.step }}" class="w-20 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-white focus:border-accent focus:outline-none" />
+          </div>
+          <div class="flex justify-between text-[0.65rem] uppercase tracking-wide text-slate-400/70">
+            <span>{{ field.min }} {{ field.unit }}</span>
+            <span>{{ field.max }} {{ field.unit }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(0,1fr)]">
+      <div class="space-y-4">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-white">Opciones de recomendación</h3>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="space-y-2">
+            <label for="recommendation_count" class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80">Número de recetas</label>
+            <input type="number" id="recommendation_count" name="recommendation_count" min="1" max="20" value="{{ recommendation_count }}" class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50">
+          </div>
+          <div class="space-y-2">
+            <label for="ingredients" class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80">Ingredientes requeridos (opcional)</label>
+            <input type="text" id="ingredients" name="ingredients" placeholder="pollo, quinoa" value="{{ ingredients_input }}" class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50">
+            <p class="text-[0.65rem] text-slate-400/70">Separa cada ingrediente por coma.</p>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-end">
+        <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent/80 px-6 py-3 text-sm font-semibold text-white transition hover:bg-accent">
+          Buscar recetas compatibles
+        </button>
+      </div>
+    </div>
+
+    {% if error %}
+    <p class="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{{ error }}</p>
+    {% elif info_message %}
+    <p class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200/80">{{ info_message }}</p>
+    {% endif %}
+  </form>
+
+  {% if recommendations %}
+  <section class="space-y-4">
+    <header class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div>
+        <h2 class="text-xl font-semibold text-white">Recetas sugeridas</h2>
+        <p class="text-sm text-slate-300/80">Basadas en los valores seleccionados{% if ingredients_input %} y conteniendo {{ ingredients_input }}{% endif %}.</p>
+      </div>
+      <span class="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-slate-200/80">{{ recommendations|length }} resultados</span>
+    </header>
+    <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      {% for recipe in recommendations %}
+      <article class="flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
+        <div class="relative h-44 w-full overflow-hidden">
+          {% if recipe.RecipeImages %}
+          <img src="{{ recipe.RecipeImages[0] }}" alt="{{ recipe.Name }}" class="h-full w-full object-cover">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+          {% else %}
+          <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/40 via-fuchsia-500/30 to-purple-600/40"></div>
+          {% endif %}
+          <div class="absolute bottom-3 left-3 flex flex-wrap gap-2 text-[0.7rem] text-white/90">
+            <span class="rounded-full bg-white/20 px-3 py-1">{{ recipe.Calories|round(0) }} kcal</span>
+            {% if recipe.TotalTime %}
+            <span class="rounded-full bg-white/20 px-3 py-1">{{ recipe.TotalTime }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="flex flex-1 flex-col gap-4 p-5 text-sm text-slate-200/90">
+          <div class="space-y-1">
+            <h3 class="text-lg font-semibold text-white">{{ recipe.Name }}</h3>
+            <p class="text-xs uppercase tracking-wide text-slate-400/80">Receta personalizada</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-[0.7rem] text-slate-200/80">
+            <span class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">Proteína {{ recipe.ProteinContent|round(1) }} g</span>
+            <span class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">Carbohidratos {{ recipe.CarbohydrateContent|round(1) }} g</span>
+            <span class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">Grasas {{ recipe.FatContent|round(1) }} g</span>
+            <span class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">Azúcares {{ recipe.SugarContent|round(1) }} g</span>
+            <span class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">Fibra {{ recipe.FiberContent|round(1) }} g</span>
+            <span class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">Sodio {{ recipe.SodiumContent|round(0) }} mg</span>
+          </div>
+          {% if recipe.RecipeIngredientParts %}
+          <div class="space-y-1 text-xs">
+            <p class="uppercase tracking-wide text-slate-400/80">Ingredientes principales</p>
+            <p class="text-slate-200/70">{{ recipe.RecipeIngredientParts[:6]|join(', ') }}{% if recipe.RecipeIngredientParts|length > 6 %}…{% endif %}</p>
+          </div>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+<script>
+const sliderPairs = document.querySelectorAll('[data-linked-input]');
+sliderPairs.forEach((numberInput) => {
+  const sliderId = numberInput.getAttribute('data-linked-input');
+  const slider = document.getElementById(sliderId);
+  const valueBadge = document.querySelector(`[data-value-badge="${sliderId}"]`);
+  if (!slider || !valueBadge) {
+    return;
+  }
+  const unit = valueBadge.dataset.unit || '';
+  const precision = Number(valueBadge.dataset.precision || 0);
+  const formatValue = (value) => {
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) {
+      return slider.value;
+    }
+    return precision > 0 ? numeric.toFixed(precision) : Math.round(numeric).toString();
+  };
+  const updateDisplay = (value) => {
+    valueBadge.textContent = `${formatValue(value)} ${unit}`.trim();
+  };
+  slider.addEventListener('input', () => {
+    numberInput.value = formatValue(slider.value);
+    updateDisplay(slider.value);
+  });
+  numberInput.addEventListener('input', () => {
+    const minValue = parseFloat(numberInput.min);
+    const maxValue = parseFloat(numberInput.max);
+    let parsed = Number(numberInput.value);
+    if (Number.isNaN(parsed)) {
+      parsed = Number(slider.value);
+    }
+    const clamped = Math.min(maxValue, Math.max(minValue, parsed));
+    numberInput.value = formatValue(clamped);
+    slider.value = clamped;
+    updateDisplay(clamped);
+  });
+  updateDisplay(slider.value);
+});
+</script>
+{% endblock %}
