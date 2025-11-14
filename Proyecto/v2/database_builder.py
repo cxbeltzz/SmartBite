@@ -220,14 +220,10 @@ def populate_database(csv_path: Path, dsn: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Normalize recipe dataset into a PostgreSQL database")
-    parser.add_argument("csv_path", type=Path, help="Path to the raw CSV dataset")
-    parser.add_argument(
-        "dsn",
-        help="PostgreSQL DSN, e.g. postgresql://user:password@host:5432/database",
-    )
-    args = parser.parse_args()
-    populate_database(args.csv_path, args.dsn)
+    csv_path = Path("dataset.csv")
+    dsn = "postgresql://postgres:password@db:5432/v2"
+
+    populate_database(csv_path, dsn)
 
 
 if __name__ == "__main__":

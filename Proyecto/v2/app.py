@@ -8,12 +8,13 @@ from flask import Flask, render_template, request
 
 import model
 
-POSTGRES_DSN = os.getenv("POSTGRES_DSN", "mmmm")
+
+#POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://postgres:password@db:5432/v2")
+POSTGRES_DSN = "postgresql://postgres:password@db:5432/v2"
 
 app = Flask(__name__)
 
 _dataframe_cache = None
-
 
 ACTIVITY_LEVELS: Dict[str, Tuple[str, float]] = {
     "sedentary": ("Little/no exercise", 1.2),

@@ -1,0 +1,6 @@
+Flask>=2.2
+psycopg2-binary
+gunicorn
+numpy
+pandas
+scikit-learn
