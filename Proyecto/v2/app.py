@@ -430,6 +430,40 @@ def custom_recommendations():
         recommendation_count=recommendation_count,
     )
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    success = None
+    
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+        remember = request.form.get("remember")
+        
+        if email and password:
+            success = "Login exitoso (pendiente de implementar)"
+        else:
+            error = "Por favor completa todos los campos"
+    
+    return render_template("auth/login.html", error=error, success=success)
+
+# Registro de un nuevo usuario. Por ahora no es tan necesario
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    #Implementar registro
+    return render_template("register.html")
+
+# Toca implementarlo también más adelante xd. Por ahora no es tan necesario
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    return render_template("forgot_password.html")
+
+
+# Esto por ahora queda pendiente porque es opcional de nuestra entrega final
+@app.route("/auth/google")
+def google_login():
+    return "Google OAuth pendiente de implementar"
+
 
 if __name__ == "__main__":
     app.run(debug=True)

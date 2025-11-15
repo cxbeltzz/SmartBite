@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="min-h-full">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -29,16 +29,20 @@
         :root {
             color-scheme: dark;
         }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
     </style>
 </head>
-<body class="min-h-screen bg-base text-slate-100 font-sans antialiased relative overflow-x-hidden">
-    <div class="pointer-events-none absolute inset-0 -z-10">
+<body class="h-full bg-base text-slate-100 font-sans antialiased relative overflow-hidden">
+    <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div class="absolute -top-32 -left-20 h-96 w-96 bg-accent/40 blur-3xl"></div>
         <div class="absolute -bottom-20 right-[-120px] h-[28rem] w-[28rem] bg-fuchsia-600/30 blur-3xl"></div>
         <div class="absolute top-32 right-1/3 h-64 w-64 bg-indigo-500/20 blur-3xl"></div>
     </div>
-    <main class="relative z-10 py-12 sm:py-16">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <main class="relative z-10 h-full flex items-center">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
             {% block content %}{% endblock %}
         </div>
     </main>
