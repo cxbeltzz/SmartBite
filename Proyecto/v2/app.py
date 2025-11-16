@@ -4,15 +4,38 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 import numpy as np
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for, flash
+
+import psycopg2
+from psycopg2.extensions import connection as PGConnection
+from flask_sqlalchemy import SQLAlchemy
 
 import model
 
+import config
+
+# Modelos
+from models.ModelUser import ModelUser
+
+# Entidades
+from models.entities.User import User
+
+# Utilidades
+from utils.username_format import username
+
+# Para manejar las sesiones
+from flask_login import LoginManager, login_user, logout_user, login_required
 
 #POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://postgres:password@db:5432/v2")
 POSTGRES_DSN = "postgresql://postgres:password@db:5432/v2"
 
 app = Flask(__name__)
+
+# Para la base de datos de los usuarios
+app.config['SQLALCHEMY_DATABASE_URI'] = config.dsn
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+login_manager_app = LoginManager(app)
 
 _dataframe_cache = None
 
@@ -430,40 +453,82 @@ def custom_recommendations():
         recommendation_count=recommendation_count,
     )
 
+@login_manager_app.user_loader
+def load_user(id):
+    return ModelUser.get_by_id(db, id)
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    error = None
-    success = None
     
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
         remember = request.form.get("remember")
         
-        if email and password:
-            success = "Login exitoso (pendiente de implementar)"
+        user = User(0, username(email), password)
+        logged_user = ModelUser.login(db, user)
+        
+        if logged_user != None:
+            if logged_user.password:
+                login_user(logged_user)
+                return redirect('/')
+            else:
+                flash("Invalid Password...")
+                return render_template("auth/login.html")
         else:
-            error = "Por favor completa todos los campos"
-    
-    return render_template("auth/login.html", error=error, success=success)
+            flash("User Not Found...")
+            return render_template("auth/login.html")
+    return render_template("auth/login.html")
 
-# Registro de un nuevo usuario. Por ahora no es tan necesario
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    #Implementar registro
-    return render_template("register.html")
+    error = None
+    success = None
+    if request.method == "POST":
+        name = request.form.get("name")
+        email = request.form.get("email")
+        password = request.form.get("password")
+        confirm_password = request.form.get("confirm_password")
+        terms = request.form.get("terms")
+        
+        # Validaciones
+        if not all([name, email, password, confirm_password]):
+            error = "Por favor completa todos los campos"
+        elif password != confirm_password:
+            error = "Las contraseñas no coinciden"
+        elif len(password) < 6:
+            error = "La contraseña debe tener al menos 6 caracteres"
+        elif not terms:
+            error = "Debes aceptar los términos y condiciones"
+        else:
+            # TODO: Guardar usuario en base de datos
+            success = f"¡Cuenta creada exitosamente para {email}!"
+            # return redirect(url_for('login'))
+    
+    return render_template("auth/register.html", error=error, success=success)
 
-# Toca implementarlo también más adelante xd. Por ahora no es tan necesario
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
-    return render_template("forgot_password.html")
+    error = None
+    success = None
 
+    if request.method == "POST":
+        email = request.form.get("email")
+        
+        if not email:
+            error = "Por favor ingresa tu correo electrónico"
+        else:
+            # TODO: Enviar email de recuperación
+            success = f"Se ha enviado un enlace de recuperación a {email}"
+    
+    return render_template("auth/forgot_password.html", error=error, success=success)
 
 # Esto por ahora queda pendiente porque es opcional de nuestra entrega final
 @app.route("/auth/google")
 def google_login():
-    return "Google OAuth pendiente de implementar"
+    return "Google Auth pendiente de implementar"
 
 
 if __name__ == "__main__":
+    app.config.from_object(config.DevelopmentConfig)
     app.run(debug=True)
