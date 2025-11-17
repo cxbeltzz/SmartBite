@@ -1,0 +1,3 @@
+[pytest11]
+pytest-flask-sqlalchemy = pytest_flask_sqlalchemy.plugin
+

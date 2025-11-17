@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+.env
+.git
+.gitignore
+.DS_Store
+*.zip
