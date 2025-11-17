@@ -4,5 +4,5 @@ def username(email):
     Param: email
     Return: usuario de correo sin el "@unal.edu.co"
     """
-    _ = email.split("@")
-    return _[0]
+    username = email.split("@")
+    return username[0]

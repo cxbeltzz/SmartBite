@@ -4,10 +4,8 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 import numpy as np
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, flash
 
-import psycopg2
-from psycopg2.extensions import connection as PGConnection
 from flask_sqlalchemy import SQLAlchemy
 
 import model
@@ -473,12 +471,22 @@ def login():
                 login_user(logged_user)
                 return redirect('/')
             else:
-                flash("Invalid Password...")
+                flash("Contraseña Inválida")
                 return render_template("auth/login.html")
         else:
-            flash("User Not Found...")
+            flash("Usuario Inválido")
             return render_template("auth/login.html")
     return render_template("auth/login.html")
+
+@app.route("/logout")
+def logout():
+    logout_user()
+    return redirect("/")
+
+@app.route("/protected")
+@login_required
+def protected():
+    return "<h1>Esta es una vista protegida, solo para usuarios autenticados.</h1>"
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -529,6 +537,16 @@ def google_login():
     return "Google Auth pendiente de implementar"
 
 
+def status_401(error):
+    return redirect("/login")
+
+# Queda pendiente hacer una vista más elegante para cuando pase esto
+def status_404(error):
+    return "<h1>Página no encontrada</h1>", 404
+
 if __name__ == "__main__":
     app.config.from_object(config.DevelopmentConfig)
+    app.register_error_handler(401, status_401)
+    app.register_error_handler(404, status_404)
+
     app.run(debug=True)

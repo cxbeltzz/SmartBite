@@ -32,13 +32,13 @@ class ModelUser():
             connection.close()
     
     @classmethod
-    def get_by_id(self, db, user):
+    def get_by_id(self, db, id):
         connection: PGConnection = psycopg2.connect(dsn)
         try:
             with connection:
                 with connection.cursor() as cursor:
                     # Para obtener datos de user_account 
-                    sql1 =  "SELECT id, email, full_name FROM user_account WHERE email = '{}'".format(user.id)
+                    sql1 =  "SELECT id, email, full_name FROM user_account WHERE id = '{}'".format(id)
                     cursor.execute(sql1)
                     row1 = cursor.fetchone()
 

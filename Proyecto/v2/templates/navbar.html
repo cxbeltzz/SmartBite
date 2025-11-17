@@ -1,0 +1,93 @@
+<nav class="sticky top-0 z-50 backdrop-blur-md bg-base/80 border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+
+            <a href="{{ url_for('index') }}" class="flex items-center gap-3 group">
+                <img 
+                    src="{{ url_for('static', filename='images/logo_icon.png') }}" 
+                    alt="SmartBite Logo" 
+                    class="w-10 h-10 shadow-lg transition-transform group-hover:scale-105"
+                >
+                <span class="text-xl font-semibold text-white hidden sm:block">SmartBite</span>
+            </a>
+            <div class="hidden md:flex items-center gap-6">
+                <a href="{{ url_for('index') }}" class="text-sm text-slate-300/80 hover:text-white transition">
+                    Inicio
+                </a>
+                <a href="{{ url_for('custom_recommendations') }}" class="text-sm text-slate-300/80 hover:text-white transition">
+                    Personalizado
+                </a>
+            </div>
+            <div class="flex items-center gap-3">
+                {% if current_user.is_active %}
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm text-slate-300/80 hidden sm:block">
+                            Hola, <span class="text-white font-medium">{{ current_user.name}}</span>
+                        </span>
+                        <a 
+                            href="{{ url_for('logout') }}"
+                            class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-accent/50 hover:bg-accent/10"
+                        >
+                            Cerrar sesión
+                        </a>
+                    </div>
+                {% else %}
+                    <a 
+                        href="{{ url_for('login') }}"
+                        class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-accent/50 hover:bg-accent/10"
+                    >
+                        Iniciar sesión
+                    </a>
+                    <a 
+                        href="{{ url_for('register') }}"
+                        class="inline-flex items-center gap-2 rounded-full bg-accent/80 px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent"
+                    >
+                        Registrarse
+                    </a>
+                {% endif %}
+            </div>
+            <button 
+                id="mobile-menu-button"
+                class="md:hidden inline-flex items-center justify-center p-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition"
+                aria-label="Abrir menú"
+            >
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="mobile-menu" class="hidden md:hidden border-t border-white/10 bg-base/95 backdrop-blur-md">
+        <div class="px-4 py-4 space-y-3">
+            <a href="{{ url_for('index') }}" class="block px-4 py-2 text-sm text-slate-300/80 hover:text-white hover:bg-white/10 rounded-lg transition">
+                Inicio
+            </a>
+            <a href="{{ url_for('custom_recommendations') }}" class="block px-4 py-2 text-sm text-slate-300/80 hover:text-white hover:bg-white/10 rounded-lg transition">
+                Personalizado
+            </a>
+            
+            {% if not current_user.is_active %}
+            <div class="pt-3 border-t border-white/10 space-y-2">
+                <a href="{{ url_for('login') }}" class="block px-4 py-2 text-center text-sm font-semibold text-white bg-white/10 rounded-lg hover:bg-white/20 transition">
+                    Iniciar sesión
+                </a>
+                <a href="{{ url_for('register') }}" class="block px-4 py-2 text-center text-sm font-semibold text-white bg-accent/80 rounded-lg hover:bg-accent transition">
+                    Registrarse
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<script>
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    
+    if (mobileMenuButton && mobileMenu) {
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+    }
+</script>

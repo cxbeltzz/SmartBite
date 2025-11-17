@@ -1,5 +1,6 @@
 from werkzeug.security import check_password_hash
 from flask_login import UserMixin
+from utils.name import name
 
 class User(UserMixin):
 
@@ -8,6 +9,7 @@ class User(UserMixin):
         self.username = username # username del correo UNAL
         self.password = password
         self.fullname = fullname
+        self.name = name(fullname) # Para usarlo en la navbar
     
     @classmethod
     def check_password(self, hashed_password, password):
