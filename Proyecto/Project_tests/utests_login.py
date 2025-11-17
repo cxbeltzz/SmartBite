@@ -93,7 +93,7 @@ class TestLoginSinBD(unittest.TestCase):
         
         print("Prueba 3: Login rechazado porque la contraseña es inválida")
 
-
+# Aquí pruebo algunos casos límite, no todos, para ver como se comporta lo que llevamos con la app
 class TestCasosLimite(unittest.TestCase):
     """
     Casos límite de los tests unitarios
@@ -217,4 +217,5 @@ if __name__ == '__main__':
             print(f"   - {test}")
             print(f"     {traceback[:300]}...")
     
+
     sys.exit(0 if result.wasSuccessful() else 1)
