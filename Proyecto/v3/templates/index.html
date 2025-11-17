@@ -1,0 +1,773 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-12">
+  <section class="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 px-8 py-10 shadow-[0_40px_120px_-60px_rgba(167,139,250,0.7)] backdrop-blur">
+    <div class="absolute -top-40 right-10 h-72 w-72 rounded-full bg-accentSoft/30 blur-3xl"></div>
+    <div class="absolute -bottom-24 left-16 h-64 w-64 rounded-full bg-indigo-400/25 blur-3xl"></div>
+    <div class="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+      <div class="max-w-xl space-y-4">
+        <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-accentSoft">
+          <span class="inline-block h-2 w-2 rounded-full bg-accentSoft"></span>
+          SmartBite
+        </span>
+        <h1 class="text-4xl font-semibold leading-tight text-white">Panel de recomendaciones personalizadas</h1>
+        <p class="text-sm text-slate-200/80">Ajusta tus datos, genera un plan nutricional equilibrado y descubre recetas con imágenes inspiradas en tu estilo de vida.</p>
+        <div class="flex flex-wrap items-center gap-3 pt-2">
+          <a href="#recommendation-form" class="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent/80">
+            Ir al formulario principal
+          </a>
+          <a href="{{ url_for('custom_recommendations') }}" class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm font-semibold text-white transition hover:border-accent/50 hover:bg-accent/10">
+            Modo personalizado&nbsp;→
+          </a>
+        </div>
+      </div>
+      <div class="grid flex-1 gap-4 sm:grid-cols-2">
+        <div class="rounded-2xl border border-white/10 bg-white/10 px-5 py-4">
+          <p class="text-xs uppercase tracking-wide text-slate-300/70">Plan seleccionado</p>
+          <p class="text-lg font-semibold text-white">
+            {% if result %}
+              {{ result.selected_plan.label }}
+            {% else %}
+              {{ plans[defaults.plan][0] }}
+            {% endif %}
+          </p>
+          <p class="text-xs text-slate-300/70 mt-1">
+            {% if result %}
+              Objetivo diario {{ result.selected_plan.calories }} kcal
+            {% else %}
+              Personaliza tus datos para calcular un objetivo diario
+            {% endif %}
+          </p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/10 px-5 py-4">
+          <p class="text-xs uppercase tracking-wide text-slate-300/70">Intensidad diaria</p>
+          <p class="text-lg font-semibold text-white">
+            {% if result %}
+              {{ activities[result.user.activity][0] }}
+            {% else %}
+              {{ activities[defaults.activity][0] }}
+            {% endif %}
+          </p>
+          <p class="text-xs text-slate-300/70 mt-1">
+            {% if result %}
+              Factor {{ activities[result.user.activity][1]|round(2) }}
+            {% else %}
+              Factor {{ activities[defaults.activity][1]|round(2) }} estimado
+            {% endif %}
+          </p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/10 px-5 py-4">
+          <p class="text-xs uppercase tracking-wide text-slate-300/70">Comidas al día</p>
+          <p class="text-lg font-semibold text-white">
+            {% if result %}
+              {{ result.meals_per_day }}
+            {% else %}
+              {{ defaults.meals_per_day }}
+            {% endif %}
+          </p>
+          <p class="text-xs text-slate-300/70 mt-1">Ajusta según tu rutina cotidiana.</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-white/10 px-5 py-4">
+          <p class="text-xs uppercase tracking-wide text-slate-300/70">Perfil base</p>
+          <p class="text-lg font-semibold text-white">{{ defaults.age }} años</p>
+          <p class="text-xs text-slate-300/70 mt-1">{{ defaults.weight_kg }} kg • {{ defaults.height_cm }} cm</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <form id="recommendation-form" method="post" class="rounded-3xl border border-white/10 bg-white/5 px-8 py-8 shadow-[0_40px_120px_-60px_rgba(129,140,248,0.7)] backdrop-blur">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <h2 class="text-2xl font-semibold text-white">Personaliza tus datos</h2>
+        <p class="text-sm text-slate-300/80">Ajusta tu perfil y genera nuevas recomendaciones adaptadas a tus objetivos.</p>
+      </div>
+      <button id="generate-button" type="submit" class="inline-flex items-center gap-2 rounded-full bg-accent/80 px-6 py-3 text-sm font-semibold text-white transition hover:bg-accent">
+        Generar recomendaciones
+      </button>
+    </div>
+    <div class="grid gap-6 lg:grid-cols-3">
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="age">Edad</label>
+        <input id="age" name="age" type="number" min="10" max="90" value="{{ defaults.age }}" class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50" required>
+      </div>
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="height_cm">Altura (cm)</label>
+        <input id="height_cm" name="height_cm" type="number" step="0.1" min="120" max="220" value="{{ defaults.height_cm }}" class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50" required>
+      </div>
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="weight_kg">Peso (kg)</label>
+        <input id="weight_kg" name="weight_kg" type="number" step="0.1" min="40" max="200" value="{{ defaults.weight_kg }}" class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50" required>
+      </div>
+    </div>
+    <div class="grid gap-6 md:grid-cols-2">
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="gender">Género</label>
+        <select id="gender" name="gender" class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50">
+          <option value="male" {% if defaults.gender == 'male' %}selected{% endif %}>Masculino</option>
+          <option value="female" {% if defaults.gender == 'female' %}selected{% endif %}>Femenino</option>
+        </select>
+      </div>
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="plan">Plan de peso</label>
+        <select id="plan" name="plan" class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50">
+          {% for key, (label, _, _) in plans.items() %}
+          <option value="{{ key }}" {% if defaults.plan == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="grid gap-6 lg:grid-cols-2">
+      <div class="space-y-3">
+        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="activity">Actividad</label>
+        <input type="range" id="activity" name="activity_index" min="0" max="{{ activity_order|length - 1 }}" value="{{ activity_index }}" class="h-2 w-full rounded-full bg-white/20 accent-accent">
+        <div class="flex justify-between text-[0.675rem] text-slate-300/80">
+          {% for key in activity_order %}
+          <span data-activity-option="{{ loop.index0 }}" class="transition">{{ activities[key][0] }}</span>
+          {% endfor %}
+        </div>
+        <p id="activity-selected" class="text-xs text-slate-300/80">Seleccionado: {{ activities[defaults.activity][0] }}</p>
+      </div>
+      <div class="space-y-3">
+        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="meals_per_day">Comidas por día <span id="meals-value" class="font-semibold text-white">{{ defaults.meals_per_day }}</span></label>
+        <input type="range" id="meals_per_day" name="meals_per_day" min="3" max="5" value="{{ defaults.meals_per_day }}" class="h-2 w-full rounded-full bg-white/20 accent-accent">
+      </div>
+    </div>
+    {% if error %}
+    <p class="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{{ error }}</p>
+    {% endif %}
+  </form>
+
+  <div id="loading-overlay" class="fixed inset-0 z-40 hidden items-center justify-center bg-black/60 backdrop-blur">
+    <div class="flex flex-col items-center gap-6 rounded-3xl border border-white/10 bg-white/5 px-10 py-8 text-sm text-slate-200">
+      <div class="relative flex items-center justify-center">
+        <div class="h-20 w-20 rounded-full border-4 border-white/10"></div>
+        <div class="absolute h-20 w-20 rounded-full border-4 border-t-transparent border-r-transparent border-white/60 animate-spin"></div>
+      </div>
+      <p class="text-sm text-slate-100/80">Generando recomendaciones…</p>
+    </div>
+  </div>
+
+  {% if result %}
+  <section class="space-y-6">
+    <div class="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+      <div class="flex flex-wrap gap-4">
+        <div class="flex-1 min-w-[180px] rounded-2xl border border-white/10 bg-white/10 px-4 py-4">
+          <p class="text-xs uppercase tracking-wide text-slate-300/70">BMI</p>
+          <p class="text-2xl font-semibold text-white">{{ result.bmi }}</p>
+          <p class="text-xs text-slate-300/80 mt-1">{{ result.bmi_status }}</p>
+        </div>
+        <div class="flex-1 min-w-[180px] rounded-2xl border border-white/10 bg-white/10 px-4 py-4">
+          <p class="text-xs uppercase tracking-wide text-slate-300/70">TDEE estimado</p>
+          <p class="text-2xl font-semibold text-white">{{ result.tdee }} kcal</p>
+          <p class="text-xs text-slate-300/80 mt-1">{{ activities[result.user.activity][0] }}</p>
+        </div>
+        <div class="flex-1 min-w-[180px] rounded-2xl border border-white/10 bg-white/10 px-4 py-4">
+          <p class="text-xs uppercase tracking-wide text-slate-300/70">Comidas al día</p>
+          <p class="text-2xl font-semibold text-white">{{ result.meals_per_day }}</p>
+          <p class="text-xs text-slate-300/80 mt-1">Edad {{ result.user.age }} • {{ result.user.weight_kg }} kg • {{ result.user.height_cm }} cm</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h3 class="text-lg font-semibold text-white">Planes disponibles</h3>
+        <p class="text-xs text-slate-300/80">Seleccionado: {{ result.selected_plan.label }}</p>
+      </div>
+      <div class="flex gap-4 overflow-x-auto pb-2">
+        {% for key, data in result.targets.items() %}
+        <div class="min-w-[220px] rounded-2xl border border-white/10 px-5 py-4 {% if key == result.selected_plan_key %}bg-accent/10 ring-2 ring-accent/40{% else %}bg-white/5{% endif %}">
+          <p class="text-sm font-semibold text-white">{{ data.label }}</p>
+          <p class="text-xs text-slate-300/80 mt-1">{{ data.calories }} kcal por día</p>
+          {% if data.delta_kg != 0 %}
+          <p class="mt-2 text-xs text-slate-300/70">{{ data.delta_kg }} kg/semana</p>
+          {% else %}
+          <p class="mt-2 text-xs text-slate-300/70">Mantener peso</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur space-y-4">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h3 class="text-xl font-semibold text-white">Tu plan nutricional</h3>
+          <p class="text-sm text-slate-300/80">Plan {{ result.selected_plan.label }} • {{ result.meals_per_day }} comidas diarias</p>
+        </div>
+        <div class="flex flex-wrap gap-2 text-xs text-slate-200/80">
+          <span class="rounded-full border border-white/10 bg-white/10 px-3 py-1">Meta por comida {{ result.macro_per_meal.calories }} kcal</span>
+          <span class="rounded-full border border-white/10 bg-white/10 px-3 py-1">Proteína {{ result.macro_per_meal.protein }} g</span>
+          <span class="rounded-full border border-white/10 bg-white/10 px-3 py-1">Carbohidratos {{ result.macro_per_meal.carbs }} g</span>
+          <span class="rounded-full border border-white/10 bg-white/10 px-3 py-1">Grasas {{ result.macro_per_meal.fat }} g</span>
+        </div>
+      </div>
+      <p class="text-sm text-slate-300/80">Explora cada bloque de comida con recetas seleccionadas a tu medida.</p>
+    </div>
+
+    {% for meal_key, recipes in result.recommendations.items() %}
+    {% set meal_label = result.meal_labels[meal_key] if result.meal_labels and meal_key in result.meal_labels else meal_key|title %}
+    <div class="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur space-y-5">
+      <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h4 class="text-lg font-semibold text-white">{{ meal_label }}</h4>
+          <p class="text-xs text-slate-300/80">Aproximadamente {{ result.macro_per_meal.calories }} kcal • {{ result.macro_per_meal.protein }} g proteína</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-[0.7rem] text-slate-300/80">
+          <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1">{{ meal_label }}</span>
+          <span class="rounded-full border border-white/15 bg-white/5 px-3 py-1">{{ recipes|length }} recetas</span>
+        </div>
+      </div>
+      {% if recipes %}
+      <div class="flex gap-5 overflow-x-auto pb-2 snap-x snap-mandatory">
+        {% for recipe in recipes %}
+        <article class="group relative min-w-[260px] max-w-[320px] snap-start overflow-hidden rounded-3xl border border-white/10 bg-surface/70 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-accent/50">
+          <div class="relative h-40 w-full overflow-hidden">
+            {% if recipe.RecipeImages %}
+            <img src="{{ recipe.RecipeImages[0] }}" alt="{{ recipe.Name }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+            {% else %}
+            <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/40 via-fuchsia-500/30 to-purple-600/40"></div>
+            {% endif %}
+            <div class="absolute top-3 right-3 flex gap-2 text-xs text-white/90">
+              <span class="rounded-full bg-white/20 px-3 py-1">{{ recipe.Calories|round(0) }} kcal</span>
+              {% if recipe.TotalTime %}
+              <span class="rounded-full bg-white/20 px-3 py-1">{{ recipe.TotalTime }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="p-5 space-y-3 text-sm text-slate-200/90">
+            <div class="space-y-1.5">
+              <h5 class="text-base font-semibold text-white">{{ recipe.Name }}</h5>
+              <p class="text-xs uppercase tracking-wide text-slate-400/80">{{ meal_label }} • {{ recipe.Calories|round(0) }} kcal</p>
+            </div>
+            <div class="flex flex-wrap gap-2 text-[0.7rem] text-slate-200/80">
+              <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1"><span class="h-2 w-2 rounded-full bg-emerald-400"></span>Prot {{ recipe.ProteinContent|round(0) }} g</span>
+              <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1"><span class="h-2 w-2 rounded-full bg-sky-400"></span>Carb {{ recipe.CarbohydrateContent|round(0) }} g</span>
+              <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1"><span class="h-2 w-2 rounded-full bg-amber-400"></span>Grasa {{ recipe.FatContent|round(0) }} g</span>
+            </div>
+            <details class="group/accordion rounded-2xl border border-white/10 bg-white/5 p-4">
+              <summary class="flex cursor-pointer items-center justify-between text-sm font-medium text-white">
+                <span>Ver detalles</span>
+                <span class="text-xs text-slate-300 transition group-open/accordion:rotate-180">&#9662;</span>
+              </summary>
+              <div class="mt-4 space-y-4 text-sm text-slate-200/80">
+                {% if recipe.RecipeIngredientParts %}
+                <div>
+                  <p class="text-[0.7rem] uppercase tracking-wide text-slate-400/80">Ingredientes</p>
+                  <ul class="mt-2 list-disc list-inside space-y-1">
+                    {% for ingredient in recipe.RecipeIngredientParts %}
+                    <li>{{ ingredient }}</li>
+                    {% endfor %}
+                  </ul>
+                </div>
+                {% endif %}
+                {% if recipe.RecipeInstructions %}
+                <div>
+                  <p class="text-[0.7rem] uppercase tracking-wide text-slate-400/80">Instrucciones</p>
+                  <ol class="mt-2 list-decimal list-inside space-y-1">
+                    {% for step in recipe.RecipeInstructions %}
+                    <li>{{ step }}</li>
+                    {% endfor %}
+                  </ol>
+                </div>
+                {% endif %}
+              </div>
+            </details>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="rounded-2xl border border-dashed border-white/15 bg-white/5 p-6 text-center text-sm text-slate-300/80">No hay recetas para este bloque. Ajusta tu plan para descubrir más opciones.</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+      <div class="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur space-y-6">
+        <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 class="text-xl font-semibold text-white">Compón tu plan diario</h3>
+            <p class="text-sm text-slate-300/80">Selecciona una receta por bloque y compara el aporte nutricional total contra tu objetivo.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-xs text-slate-300/80" id="composition-summary">
+            <span class="block font-semibold text-white">Sin selección activa</span>
+            <span class="block">Elige recetas para ver el balance.</span>
+          </div>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {% for meal_key in result.meal_order %}
+          {% set meal_recipes = result.recommendations[meal_key] %}
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="composition-{{ meal_key }}">{{ result.meal_labels[meal_key] }}</label>
+            {% if meal_recipes %}
+            <select id="composition-{{ meal_key }}" data-meal-select data-meal-key="{{ meal_key }}" class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50">
+              {% for recipe in meal_recipes %}
+              <option value="{{ loop.index0 }}">{{ recipe.Name }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <div class="rounded-2xl border border-dashed border-white/15 bg-white/5 px-4 py-3 text-xs text-slate-300/70">No hay opciones para {{ result.meal_labels[meal_key] }}.</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="grid gap-6 lg:grid-cols-[minmax(0,1.2fr),minmax(0,1fr)]">
+          <div class="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div class="flex items-center justify-between">
+              <h4 class="text-sm font-semibold text-white">Calorías diarias</h4>
+              <span class="text-xs text-slate-300/80">Objetivo: {{ result.selected_plan.calories }} kcal</span>
+            </div>
+            <canvas id="calorie-comparison" class="w-full h-48" height="220"></canvas>
+          </div>
+          <div class="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div class="flex items-center justify-between">
+              <h4 class="text-sm font-semibold text-white">Perfil nutricional</h4>
+              <span class="text-xs text-slate-300/80">Basado en recetas seleccionadas</span>
+            </div>
+            <div class="flex flex-col items-center gap-6 lg:flex-row lg:items-center lg:justify-center">
+              <canvas id="nutrition-profile" class="h-48 w-48 lg:h-52 lg:w-52" height="220"></canvas>
+              <div id="nutrition-legend" class="grid w-full max-w-sm gap-2 text-xs text-slate-300/80"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script id="composer-data" type="application/json">{{ composer_payload|tojson|safe }}</script>
+  </section>
+  {% endif %}
+</div>
+
+<script>
+const form = document.getElementById('recommendation-form');
+const generateButton = document.getElementById('generate-button');
+const overlay = document.getElementById('loading-overlay');
+let composerPayload = { active: false };
+const composerDataElement = document.getElementById('composer-data');
+if (composerDataElement) {
+  try {
+    composerPayload = JSON.parse(composerDataElement.textContent);
+  } catch (error) {
+    console.error('No se pudo interpretar el resumen nutricional:', error);
+  }
+}
+
+console.log('Payload de composición cargado:', composerPayload);
+
+function prepareCanvas(canvas) {
+  if (!canvas) {
+    return null;
+  }
+  const context = canvas.getContext('2d');
+  if (!context) {
+    return null;
+  }
+  const dpr = window.devicePixelRatio || 1;
+  let { width, height } = canvas.getBoundingClientRect();
+  if (width <= 0) {
+    width = canvas.parentElement ? canvas.parentElement.clientWidth : 320;
+    canvas.style.width = '100%';
+  }
+  if (height <= 0) {
+    height = parseInt(canvas.getAttribute('height') || '220', 10);
+    canvas.style.height = `${height}px`;
+  }
+  canvas.width = Math.max(1, width * dpr);
+  canvas.height = Math.max(1, height * dpr);
+  context.scale(dpr, dpr);
+  return context;
+}
+
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function renderCalorieChart(ctx, totalCalories, targetCalories) {
+  if (!ctx) {
+    return;
+  }
+  const { canvas } = ctx;
+  const rect = canvas.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+  ctx.clearRect(0, 0, width, height);
+
+  const topPadding = 36;
+  const bottomPadding = 42;
+  const chartHeight = height - topPadding - bottomPadding;
+  const baseLine = height - bottomPadding;
+  const maxValue = Math.max(targetCalories || 0, totalCalories || 0, 1);
+  const maxRange = maxValue * 1.15;
+  const scale = chartHeight / maxRange;
+  const barWidth = Math.min(140, width * 0.22);
+  const spacing = Math.max(24, width * 0.18);
+  const totalBarWidth = barWidth * 2 + spacing;
+  const startX = (width - totalBarWidth) / 2;
+
+  const gridLines = 4;
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 6]);
+  for (let i = 0; i <= gridLines; i += 1) {
+    const value = (maxRange / gridLines) * i;
+    const y = Math.round(baseLine - value * scale) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(startX - barWidth * 0.6, y);
+    ctx.lineTo(startX + totalBarWidth + barWidth * 0.6, y);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  const bars = [
+    { label: 'Seleccionado', value: totalCalories || 0, color: '#c084fc' },
+    { label: 'Objetivo', value: targetCalories || 0, color: 'rgba(148, 163, 184, 0.45)' },
+  ];
+
+  ctx.textAlign = 'center';
+
+  bars.forEach((bar, index) => {
+    const barHeight = Math.max(6, bar.value * scale);
+    const x = startX + index * (barWidth + spacing);
+    const y = baseLine - barHeight;
+
+    if (bar.label === 'Seleccionado') {
+      const gradient = ctx.createLinearGradient(x, y, x, baseLine);
+      gradient.addColorStop(0, '#d8b4fe');
+      gradient.addColorStop(1, '#a855f7');
+      ctx.fillStyle = gradient;
+    } else {
+      ctx.fillStyle = bar.color;
+    }
+
+    drawRoundedRect(ctx, x, y, barWidth, barHeight, 14);
+
+    const labelY = y - 12;
+    const labelText = `${Math.round(bar.value)} kcal`;
+    ctx.font = '600 14px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = 'rgba(226,232,240,0.95)';
+    if (barHeight > 36) {
+      ctx.textBaseline = 'middle';
+      const innerY = y + Math.min(barHeight / 2, barHeight - 18);
+      ctx.fillText(labelText, x + barWidth / 2, innerY);
+    } else {
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(labelText, x + barWidth / 2, Math.max(topPadding, labelY));
+    }
+
+    ctx.font = '12px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.75)';
+    ctx.textBaseline = 'top';
+    ctx.fillText(bar.label, x + barWidth / 2, baseLine + 12);
+  });
+}
+
+function renderNutritionDonut(ctx, segments, totalValue) {
+  if (!ctx) {
+    return;
+  }
+  const { canvas } = ctx;
+  const width = canvas.getBoundingClientRect().width;
+  const height = canvas.getBoundingClientRect().height;
+  ctx.clearRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.translate(0.5, 0.5);
+
+  if (totalValue <= 0) {
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.5)';
+    ctx.font = '13px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Selecciona recetas para ver el perfil', width / 2, height / 2);
+    ctx.restore();
+    return;
+  }
+
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const outerRadius = Math.min(width, height) / 2 - 16;
+  const ringWidth = outerRadius * 0.42;
+  const radius = outerRadius - ringWidth / 2;
+  const gap = segments.length > 1 ? Math.min(0.05, (Math.PI * 2) / (segments.length * 18)) : 0;
+
+  ctx.lineWidth = ringWidth;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  let startAngle = -Math.PI / 2;
+  segments.forEach((segment) => {
+    const sweep = (segment.value / totalValue) * Math.PI * 2;
+    if (sweep <= 0) {
+      return;
+    }
+    const adjustedSweep = Math.max(0, sweep - gap);
+    const segmentStart = startAngle + gap / 2;
+    const segmentEnd = segmentStart + adjustedSweep;
+    if (segmentEnd <= segmentStart) {
+      startAngle += sweep;
+      return;
+    }
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(15, 15, 35, 0.35)';
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = segment.color;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, segmentStart, segmentEnd);
+    ctx.stroke();
+    ctx.restore();
+
+    startAngle += sweep;
+  });
+
+  const innerBackgroundRadius = Math.max(0, radius - ringWidth / 2 - 6);
+  ctx.fillStyle = 'rgba(9, 9, 22, 0.9)';
+  if (innerBackgroundRadius > 0) {
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, innerBackgroundRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = 'rgba(226,232,240,0.9)';
+  ctx.font = '600 15px "Plus Jakarta Sans", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${Math.round(totalValue)} g`, centerX, centerY - 6);
+  ctx.fillStyle = 'rgba(148, 163, 184, 0.85)';
+  ctx.font = '12px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('Totales macros', centerX, centerY + 12);
+
+  ctx.restore();
+}
+
+function initMealComposer(payload) {
+  if (!payload || !payload.active) {
+    return;
+  }
+
+  console.log('Inicializando compositor nutricional');
+
+  const mealSelects = Array.from(document.querySelectorAll('[data-meal-select]'));
+  if (!mealSelects.length) {
+    console.warn('No se encontraron selectores de comidas para el compositor');
+    return;
+  }
+
+  const mealOrder = payload.meal_order && payload.meal_order.length
+    ? payload.meal_order
+    : Object.keys(payload.recommendations || {});
+  const selections = {};
+  mealSelects.forEach((select) => {
+    const mealKey = select.dataset.mealKey;
+    selections[mealKey] = parseInt(select.value, 10) || 0;
+    select.addEventListener('change', () => {
+      selections[mealKey] = parseInt(select.value, 10) || 0;
+      updateVisuals();
+    });
+  });
+
+  const macroFields = [
+    { key: 'Calories', label: 'Calorías' },
+    { key: 'ProteinContent', label: 'Proteína (g)' },
+    { key: 'CarbohydrateContent', label: 'Carbohidratos (g)' },
+    { key: 'FatContent', label: 'Grasas totales (g)' },
+    { key: 'SaturatedFatContent', label: 'Grasas saturadas (g)' },
+    { key: 'FiberContent', label: 'Fibra (g)' },
+    { key: 'SugarContent', label: 'Azúcares (g)' },
+    { key: 'CholesterolContent', label: 'Colesterol (mg)' },
+    { key: 'SodiumContent', label: 'Sodio (mg)' },
+  ];
+
+  const donutFields = [
+    { key: 'ProteinContent', label: 'Proteína', color: '#34d399' },
+    { key: 'CarbohydrateContent', label: 'Carbohidratos', color: '#60a5fa' },
+    { key: 'FatContent', label: 'Grasas', color: '#f472b6' },
+    { key: 'FiberContent', label: 'Fibra', color: '#facc15' },
+    { key: 'SugarContent', label: 'Azúcares', color: '#fb7185' },
+  ];
+
+  const calorieCanvas = document.getElementById('calorie-comparison');
+  const nutritionCanvas = document.getElementById('nutrition-profile');
+  const calorieCtx = prepareCanvas(calorieCanvas);
+  const nutritionCtx = prepareCanvas(nutritionCanvas);
+  const summaryElement = document.getElementById('composition-summary');
+  const legendElement = document.getElementById('nutrition-legend');
+
+  if (!calorieCtx || !nutritionCtx) {
+    return;
+  }
+
+  function formatNumber(value) {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return 0;
+    }
+    return Math.round(value * 10) / 10;
+  }
+
+  function computeTotals() {
+    const totals = macroFields.reduce((acc, field) => ({ ...acc, [field.key]: 0 }), {});
+    mealOrder.forEach((mealKey) => {
+      const index = selections[mealKey] ?? 0;
+      const recipes = payload.recommendations[mealKey] || [];
+      const recipe = recipes[index];
+      if (!recipe) {
+        return;
+      }
+      macroFields.forEach((field) => {
+        const rawValue = recipe[field.key];
+        const value = rawValue === null || rawValue === undefined ? 0 : parseFloat(rawValue);
+        if (!Number.isNaN(value)) {
+          totals[field.key] += value;
+        }
+      });
+    });
+    return totals;
+  }
+
+  function updateDonutLegend(segments, totals) {
+    if (!legendElement) {
+      return;
+    }
+    legendElement.innerHTML = '';
+    if (!segments.length) {
+      const emptyState = document.createElement('p');
+      emptyState.className = 'rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-3 text-center';
+      emptyState.textContent = 'Selecciona recetas para ver la distribución.';
+      legendElement.append(emptyState);
+      return;
+    }
+
+    const totalSegments = segments.reduce((acc, item) => acc + item.value, 0);
+
+    segments.forEach((segment) => {
+      const value = formatNumber(totals[segment.key] || 0);
+      const percentage = totalSegments > 0 ? `${Math.round((segment.value / totalSegments) * 100)}%` : '';
+      const row = document.createElement('div');
+      row.className = 'flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3';
+
+      const left = document.createElement('div');
+      left.className = 'flex items-center gap-3 text-sm';
+      const swatch = document.createElement('span');
+      swatch.className = 'h-3 w-3 rounded-full';
+      swatch.style.backgroundColor = segment.color;
+      const label = document.createElement('span');
+      label.className = 'font-medium text-white';
+      label.textContent = segment.label;
+      left.append(swatch, label);
+
+      const right = document.createElement('div');
+      right.className = 'text-right text-xs text-slate-300/70';
+      right.innerHTML = `<span class="block text-white text-sm font-semibold">${value} g</span>${percentage ? `<span>${percentage}</span>` : ''}`;
+
+      row.append(left, right);
+      legendElement.append(row);
+    });
+  }
+
+  function updateVisuals() {
+    try {
+      const totals = computeTotals();
+      const totalCalories = totals.Calories || 0;
+
+      console.log('Totales nutricionales seleccionados:', totals);
+
+      renderCalorieChart(calorieCtx, totalCalories, payload.plan_calories || 0);
+
+      const donutData = donutFields
+        .map((field) => ({
+          key: field.key,
+          label: field.label,
+          color: field.color,
+          value: Math.max(0, totals[field.key] || 0),
+        }))
+        .filter((segment) => segment.value > 0);
+      const sumDonut = donutData.reduce((acc, segment) => acc + segment.value, 0);
+      renderNutritionDonut(nutritionCtx, donutData, sumDonut);
+      updateDonutLegend(donutData, totals);
+
+      if (summaryElement) {
+        const target = payload.plan_calories || 0;
+        const delta = totalCalories - target;
+        let deltaLabel = 'Alineado con tu objetivo';
+        if (delta > 0) {
+          deltaLabel = `+${Math.round(delta)} kcal sobre el objetivo`;
+        } else if (delta < 0) {
+          deltaLabel = `${Math.round(delta)} kcal por debajo del objetivo`;
+        }
+        const deltaClass = delta > 0 ? 'text-rose-300/80' : delta < 0 ? 'text-emerald-300/80' : 'text-slate-300/70';
+        const summaryHtml = [
+          `<span class="block font-semibold text-white">Total seleccionado: ${Math.round(totalCalories)} kcal</span>`,
+          `<span class="block ${deltaClass}">${deltaLabel}</span>`,
+        ].join('');
+        summaryElement.innerHTML = summaryHtml;
+      }
+    } catch (err) {
+      console.error('Error actualizando visualizaciones nutricionales:', err);
+      if (summaryElement) {
+        summaryElement.textContent = `Error: ${err.message}`;
+      }
+    }
+  }
+
+  updateVisuals();
+}
+
+if (form && overlay) {
+  form.addEventListener('submit', () => {
+    overlay.classList.remove('hidden');
+    if (generateButton) {
+      generateButton.disabled = true;
+      generateButton.classList.add('opacity-70', 'cursor-not-allowed');
+    }
+  });
+}
+
+if (composerPayload && composerPayload.active) {
+  initMealComposer(composerPayload);
+}
+
+const mealsSlider = document.getElementById('meals_per_day');
+const mealsValue = document.getElementById('meals-value');
+
+if (mealsSlider && mealsValue) {
+  mealsSlider.addEventListener('input', () => {
+    mealsValue.textContent = mealsSlider.value;
+  });
+}
+
+const activityInput = document.getElementById('activity');
+const activitySelected = document.getElementById('activity-selected');
+
+if (activityInput && activitySelected) {
+  const optionLabels = document.querySelectorAll('[data-activity-option]');
+  activityInput.addEventListener('input', () => {
+    const idx = parseInt(activityInput.value, 10);
+    optionLabels.forEach((label, index) => {
+      label.classList.toggle('text-accentSoft', index === idx);
+    });
+    const match = Array.from(optionLabels).find((label) => parseInt(label.dataset.activityOption, 10) === idx);
+    if (match) {
+      activitySelected.textContent = `Seleccionado: ${match.textContent}`;
+    }
+  });
+  activityInput.dispatchEvent(new Event('input'));
+}
+</script>
+{% endblock %}
