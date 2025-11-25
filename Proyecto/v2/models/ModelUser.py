@@ -4,11 +4,13 @@ from config import dsn
 
 import psycopg2
 from psycopg2.extensions import connection as PGConnection
+from flask_login import current_user
+
 
 class ModelUser():
 
     @classmethod
-    def login(self, db, user):
+    def login(self, user):
         connection: PGConnection = psycopg2.connect(dsn)
         try:
             with connection:
@@ -25,6 +27,8 @@ class ModelUser():
                         row2 = cursor.fetchone()
 
                         _user = User(row1[0], row1[1], User.check_password(row2[0], user.password), row1[2])
+                        sql3 = "UPDATE user_account set is_active = true WHERE email = '{}'".format(user.username)
+                        cursor.execute(sql3)
                         return _user
                     else:
                         return None
@@ -32,7 +36,7 @@ class ModelUser():
             connection.close()
     
     @classmethod
-    def get_by_id(self, db, id):
+    def get_by_id(self, id):
         connection: PGConnection = psycopg2.connect(dsn)
         try:
             with connection:
@@ -48,3 +52,19 @@ class ModelUser():
                         return None
         finally:
             connection.close()
+    
+    @classmethod
+    def logout(self):
+        connection: PGConnection = psycopg2.connect(dsn)
+        try:
+            with connection:
+                with connection.cursor() as cursor:
+                    # Para cambiar el estado de la sesión en la base de datos
+                    sql1 =  "UPDATE user_account set is_active = false WHERE email = '{}'".format(current_user.username)
+                    cursor.execute(sql1)
+        finally:
+            connection.close()
+
+    @classmethod
+    def create_account(self, user):
+        connection: PGConnection = psycopg2.connect(dsn)

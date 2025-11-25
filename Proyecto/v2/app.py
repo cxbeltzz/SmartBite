@@ -20,6 +20,7 @@ from models.entities.User import User
 
 # Utilidades
 from utils.username_format import username
+from validators.user_validator import UserValidator
 
 # Para manejar las sesiones
 from flask_login import LoginManager, login_user, logout_user, login_required
@@ -453,33 +454,37 @@ def custom_recommendations():
 
 @login_manager_app.user_loader
 def load_user(id):
-    return ModelUser.get_by_id(db, id)
+    return ModelUser.get_by_id(id)
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     
     if request.method == "POST":
-        email = request.form.get("email")
+        email = request.form.get("email").replace(" ", "")
         password = request.form.get("password")
         remember = request.form.get("remember")
         
-        user = User(0, username(email), password)
-        logged_user = ModelUser.login(db, user)
-        
-        if logged_user != None:
-            if logged_user.password:
-                login_user(logged_user)
-                return redirect('/')
+        if UserValidator.check_username_log(email):
+            user = User(0, UserValidator.username_log(email), password)
+            logged_user = ModelUser.login(user)
+            
+            if logged_user != None:
+                if logged_user.password:
+                    login_user(logged_user)
+                    return redirect('/')
+                else:
+                    flash("Contraseña Inválida")
+                    return render_template("auth/login.html")
             else:
-                flash("Contraseña Inválida")
+                flash("Usuario Inválido")
                 return render_template("auth/login.html")
         else:
-            flash("Usuario Inválido")
-            return render_template("auth/login.html")
+            flash("Correo Inválido")
     return render_template("auth/login.html")
 
 @app.route("/logout")
 def logout():
+    ModelUser.logout()
     logout_user()
     return redirect("/")
 
