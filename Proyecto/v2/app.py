@@ -474,10 +474,8 @@ def login():
                     return redirect('/')
                 else:
                     flash("Contraseña Inválida")
-                    return render_template("auth/login.html")
             else:
                 flash("Usuario Inválido")
-                return render_template("auth/login.html")
         else:
             flash("Correo Inválido")
     return render_template("auth/login.html")
@@ -495,8 +493,6 @@ def protected():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    error = None
-    success = None
     if request.method == "POST":
         name = request.form.get("name")
         email = request.form.get("email")
@@ -506,7 +502,7 @@ def register():
         
         # Validaciones
         if not all([name, email, password, confirm_password]):
-            error = "Por favor completa todos los campos"
+            flash("Completa todos los campos")
         elif password != confirm_password:
             error = "Las contraseñas no coinciden"
         elif len(password) < 6:
@@ -518,7 +514,7 @@ def register():
             success = f"¡Cuenta creada exitosamente para {email}!"
             # return redirect(url_for('login'))
     
-    return render_template("auth/register.html", error=error, success=success)
+    return render_template("auth/register.html")
 
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
