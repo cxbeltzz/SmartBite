@@ -1,3 +1,5 @@
+from flask import flash
+
 """
 Esta clase ayuda a validar datos del formulario de creación de cuenta
 """
@@ -36,6 +38,12 @@ class UserValidator:
     def check_password(password):
         if len(password) < 8: # Por ahora voy a validar solo la longitud de la contraseña, pero toca poner más validaciones, como caracteres especiales y asi
             raise ValueError("Contraseña muy corta. Debe tener mínimo 8 caracteres")
+    
+    @staticmethod
+    def check_password_equals(password, confirm_password):
+        if password != confirm_password:
+            return  False
+        return True
 
     @staticmethod
     def check_fullname(fullname):

@@ -494,26 +494,36 @@ def protected():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        name = request.form.get("name")
-        email = request.form.get("email")
+        fullname = request.form.get("name")
+        email = request.form.get("email").replace(" ", "")
         password = request.form.get("password")
         confirm_password = request.form.get("confirm_password")
         terms = request.form.get("terms")
         
         # Validaciones
-        if not all([name, email, password, confirm_password]):
+        if not all([fullname, email, password, confirm_password]):
             flash("Completa todos los campos")
-        elif password != confirm_password:
-            error = "Las contraseñas no coinciden"
-        elif len(password) < 6:
-            error = "La contraseña debe tener al menos 6 caracteres"
-        elif not terms:
-            error = "Debes aceptar los términos y condiciones"
+            return redirect("/register")
+        if UserValidator.check_username_log(email):
+            registration = User(None, UserValidator.username_log(email), password, fullname)
+            try:
+                UserValidator.validate_register(registration)
+                if UserValidator.check_password_equals(password, confirm_password):
+                    if not terms:
+                        flash("Debes aceptar los términos y condiciones")
+                        return redirect('/register')
+                    else:
+                        ModelUser.create_account(registration)
+                        return redirect('/login')
+                else:
+                    flash("Las contraseñas no coinciden")
+                    return redirect('/register')
+            except Exception as VE:
+                flash(str(VE))
+                return redirect('/register')
         else:
-            # TODO: Guardar usuario en base de datos
-            success = f"¡Cuenta creada exitosamente para {email}!"
-            # return redirect(url_for('login'))
-    
+            flash("Solo usuarios de la UNAL")
+            return redirect('/register')
     return render_template("auth/register.html")
 
 @app.route("/forgot-password", methods=["GET", "POST"])
