@@ -88,3 +88,21 @@ class ModelUser():
                     cursor.execute(insert_user_pass)
         finally:
             connection.close()
+
+    @classmethod
+    def user_exits(self, email):
+        """
+        Método para mirar si un usuario existe
+        :param self: Description
+        :param email: Description
+        :return: user_id si existe, sino None
+        """
+        connection: PGConnection = psycopg2.connect(dsn)
+        try:
+            with connection:
+                with connection.cursor() as cursor:
+                    select_user_id = "SELECT id FROM user_account WHERE email = '{}'".format(email)
+                    cursor.execute(select_user_id)
+                    return cursor.fetchone()[0]
+        finally:
+            connection.close()

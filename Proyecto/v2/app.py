@@ -2,14 +2,10 @@ import os
 from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
-
 import numpy as np
 from flask import Flask, render_template, request, redirect, flash
-
 from flask_sqlalchemy import SQLAlchemy
-
 import model
-
 import config
 
 # Modelos
@@ -24,6 +20,7 @@ from validators.user_validator import UserValidator
 
 # Para manejar las sesiones
 from flask_login import LoginManager, login_user, logout_user, login_required
+from flask_dance.contrib.google import make_google_blueprint, google
 
 #POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://postgres:password@db:5432/v2")
 POSTGRES_DSN = "postgresql://postgres:password@db:5432/v2"
@@ -33,6 +30,7 @@ app = Flask(__name__)
 # Para la base de datos de los usuarios
 app.config['SQLALCHEMY_DATABASE_URI'] = config.dsn
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 login_manager_app = LoginManager(app)
 
@@ -528,25 +526,43 @@ def register():
 
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
-    error = None
-    success = None
-
     if request.method == "POST":
         email = request.form.get("email")
         
         if not email:
-            error = "Por favor ingresa tu correo electrónico"
+            flash("Por favor ingresa tu correo electrónico")
+            return redirect('/forgot-password"')
         else:
-            # TODO: Enviar email de recuperación
-            success = f"Se ha enviado un enlace de recuperación a {email}"
-    
-    return render_template("auth/forgot_password.html", error=error, success=success)
+            if UserValidator.check_username_log(email):
+                user_id = ModelUser.user_exits(email)
+                if user_id != None:
+                    p = 0
+                else:
+                    flash("No Hay Una Cuenta Asociada A Este Correo")
+            else:
+                flash("Correo Inválido")
+                return redirect('/forgot-password"')
+    return render_template("auth/forgot_password.html")
+
+google_bp = make_google_blueprint(
+    client_id = config.Config.GOOGLE_OAUTH_CLIENT_ID,
+    client_secret = config.Config.GOOGLE_OAUTH_CLIENT_SECRET,
+    redirect_to = 'google_login_callback',
+    scope = [
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "https://www.googleapis.com/auth/userinfo.email"
+    ]
+)
 
 # Esto por ahora queda pendiente porque es opcional de nuestra entrega final
 @app.route("/auth/google")
 def google_login():
     return "Google Auth pendiente de implementar"
 
+@app.route("/google_login/google/authorized")
+
+@app.route("google_login_callback")
 
 def status_401(error):
     return redirect("/login")
