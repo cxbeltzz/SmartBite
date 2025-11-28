@@ -3,10 +3,12 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 import numpy as np
-from flask import Flask, render_template, request, redirect, flash
+from flask import Flask, render_template, request, redirect, flash, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 import model
 import config
+from dotenv import load_dotenv
+load_dotenv()
 
 # Modelos
 from models.ModelUser import ModelUser
@@ -21,6 +23,8 @@ from validators.user_validator import UserValidator
 # Para manejar las sesiones
 from flask_login import LoginManager, login_user, logout_user, login_required
 from flask_dance.contrib.google import make_google_blueprint, google
+from flask_dance.consumer import oauth_authorized
+from flask_dance.consumer.storage.sqla import SQLAlchemyStorage
 
 #POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://postgres:password@db:5432/v2")
 POSTGRES_DSN = "postgresql://postgres:password@db:5432/v2"
@@ -30,6 +34,9 @@ app = Flask(__name__)
 # Para la base de datos de los usuarios
 app.config['SQLALCHEMY_DATABASE_URI'] = config.dsn
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+app.secret_key = config.Config.SECRET_KEY
 
 db = SQLAlchemy(app)
 login_manager_app = LoginManager(app)
@@ -547,22 +554,68 @@ def forgot_password():
 google_bp = make_google_blueprint(
     client_id = config.Config.GOOGLE_OAUTH_CLIENT_ID,
     client_secret = config.Config.GOOGLE_OAUTH_CLIENT_SECRET,
-    redirect_to = 'google_login_callback',
     scope = [
         "openid",
         "https://www.googleapis.com/auth/userinfo.profile",
         "https://www.googleapis.com/auth/userinfo.email"
-    ]
+    ],
+    redirect_to = "index"
 )
 
-# Esto por ahora queda pendiente porque es opcional de nuestra entrega final
-@app.route("/auth/google")
-def google_login():
-    return "Google Auth pendiente de implementar"
+app.register_blueprint(google_bp, url_prefix = "/login")
 
-@app.route("/google_login/google/authorized")
+@oauth_authorized.connect_via(google_bp)
+def google_logged_in(blueprint, token):
+    print("SIGNAL EJECUTADO: oauth_authorized se disparó")
 
-@app.route("google_login_callback")
+    if not token:
+        print("No hay token")
+        flash("Error: token no recibido de Google.")
+        return False
+
+    resp = blueprint.session.get("/oauth2/v2/userinfo")
+    if not resp.ok:
+        print("No se pudo obtener la informacion")
+        flash("Error al obtener información de Google.")
+        return False
+
+    info = resp.json()
+    google_id = info.get("id")
+    email = info.get("email")
+    name = info.get("name", "")
+    picture = info.get("picture", "")
+
+    if not google_id or not email:
+        print("Respuesta imcompleta")
+        flash("Respuesta incompleta de Google.")
+        return False
+
+    try:
+        print("Se ejecutó el try")
+        user = ModelUser.get_by_google_id(google_id)
+        print("Se ejecutó el getr_by google id")
+        if not user:
+            print("No hay usuario")
+            user = ModelUser.get_by_email(UserValidator.username_log(email))
+            if user:
+                print("Se consulto el usuario por email")
+                ModelUser.link_google_account(user.id, google_id, picture)
+            else:
+                print("Se creó un usuario porque no existia")
+                user = ModelUser.create_google_user(
+                    google_id = google_id,
+                    username = UserValidator.username_log(email),
+                    fullname = name,
+                    picture = picture
+                )
+
+        login_user(user)
+        print("Se inicio sesion")
+        flash(f"Bienvenido {user.fullname}!")
+    except Exception as exc:
+        print("Error interno")
+        flash("Error interno al autenticar con Google.")
+    return False
 
 def status_401(error):
     return redirect("/login")

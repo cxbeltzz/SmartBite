@@ -228,4 +228,6 @@ CREATE  TABLE user_saved_plan (
 	CONSTRAINT user_saved_plan_user_id_fkey FOREIGN KEY ( user_id ) REFERENCES user_account( id ) ON DELETE CASCADE  
  );
 
-
+ALTER TABLE user ADD COLUMN google_id VARCHAR(255) UNIQUE;
+ALTER TABLE user ADD COLUMN profile_pic VARCHAR(500);
+ALTER TABLE user ADD COLUMN oauth_provider VARCHAR(50);

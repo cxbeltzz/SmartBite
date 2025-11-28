@@ -10,6 +10,9 @@ class User(UserMixin):
         self.password = password
         self.fullname = fullname
         self.name = name(fullname) # Para usarlo en la navbar
+        self.google_id = None
+        self.profile_pic = None
+        self.oauth_provider = None
     
     @classmethod
     def check_password(self, hashed_password, password):

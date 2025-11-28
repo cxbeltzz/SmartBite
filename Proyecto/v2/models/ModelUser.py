@@ -7,6 +7,7 @@ from config import dsn
 import psycopg2
 from psycopg2.extensions import connection as PGConnection
 from flask_login import current_user
+import traceback
 
 
 class ModelUser():
@@ -106,3 +107,97 @@ class ModelUser():
                     return cursor.fetchone()[0]
         finally:
             connection.close()
+    
+    @classmethod
+    def get_by_google_id(cls, google_id):
+        conn = None
+        try:
+            conn = psycopg2.connect(dsn)
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, email, full_name, google_id, profile_pic, oauth_provider "
+                    "FROM user_account WHERE google_id = %s",
+                    (google_id,)
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    print("El usuario no había iniciado sesión por Google (no encontrado).")
+                    return None
+
+                user_id, email, full_name, google_id_db, profile_pic, oauth_provider = row
+
+                cursor.execute(
+                    "SELECT password_hash FROM auth_credential WHERE user_id = %s",
+                    (user_id,)
+                )
+                row2 = cursor.fetchone()
+                password_hash = row2[0] if row2 else None
+
+                user = User(user_id, email, password_hash, full_name)
+
+                user.google_id = google_id_db
+                user.profile_pic = profile_pic
+                user.oauth_provider = oauth_provider
+
+                return user
+
+        except Exception as ex:
+            print("Excepción en get_by_google_id:", ex)
+            traceback.print_exc()
+            raise
+        finally:
+            if conn:
+                conn.close()
+        
+    @classmethod
+    def create_google_user(cls, google_id, email, fullname, picture):
+        connection: PGConnection = psycopg2.connect(dsn)
+        try:
+            cursor = connection.cursor()
+            sql = "INSERT INTO user_account (email, full_name, google_id, profile_pic, oauth_provider) VALUES ('{}', '{}', '{}', '{}', 'google')".format(email, fullname, google_id, picture)
+            cursor.execute(sql)
+            # Obtener el usuario recien creado
+            return cls.get_by_google_id(google_id)
+        except Exception as ex:
+            raise Exception(ex)
+        finally:
+            connection.close()
+    
+    @classmethod
+    def link_google_account(cls, user_id, google_id, picture):
+        connection: PGConnection = psycopg2.connect(dsn)
+        try:
+            cursor = connection.cursor()
+            sql = "UPDATE user_account SET google_id = '{}', profile_pic = '{}', oauth_provider = 'google' WHERE id = '{}'".format(google_id, picture, user_id)
+            cursor.execute(sql)
+        except Exception as ex:
+            raise Exception(ex)
+        finally:
+            connection.close()
+    
+    @classmethod
+    def get_by_email(cls, email):
+        connection: PGConnection = psycopg2.connect(dsn)
+        try:
+            cursor = connection.cursor()
+            sql = "SELECT id, email, full_name, google_id, profile_pic, oauth_provider FROM user_account WHERE email = '{}'".format(email)
+            cursor.execute(sql)
+            row = cursor.fetchone()
+            
+            if row:
+                #Consulta para la contraseña
+                select_user_passhash =  "SELECT password_hash FROM auth_credential WHERE user_id = '{}'".format(row[0])
+                cursor.execute(select_user_passhash)
+                row2 = cursor.fetchone()
+
+                user = User(row[0], row[1], row2[0], row[2])
+                user.google_id = row[3] if len(row) > 4 else None
+                user.profile_pic = row[4] if len(row) > 5 else None
+                user.oauth_provider = row[5] if len(row) > 6 else None
+                return user
+            return None
+        except Exception as ex:
+            raise Exception(ex)
+        finally:
+            connection.close()
+        
