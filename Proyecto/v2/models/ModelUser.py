@@ -1,113 +1,179 @@
 from .entities.User import User
-
 from werkzeug.security import generate_password_hash
-
 from config import dsn
-
 import psycopg2
 from psycopg2.extensions import connection as PGConnection
 from flask_login import current_user
 import traceback
 
-
-class ModelUser():
-
-    @classmethod
-    def login(self, user):
-        connection: PGConnection = psycopg2.connect(dsn)
-        try:
-            with connection:
-                with connection.cursor() as cursor:
-                    # Para obtener datos de user_account 
-                    select_user =  "SELECT id, email, full_name FROM user_account WHERE email = '{}'".format(user.username)
-                    cursor.execute(select_user)
-                    row1 = cursor.fetchone()
-
-                    if row1 != None:
-                        #Consulta para la contraseña
-                        select_user_passhash =  "SELECT password_hash FROM auth_credential WHERE user_id = '{}'".format(row1[0])
-                        cursor.execute(select_user_passhash)
-                        row2 = cursor.fetchone()
-
-                        # Para actualizar la fecha de la última sesión de la cuenta
-                        cursor.execute("UPDATE auth_credential set last_login_at = now() WHERE user_id = '{}'".format(row1[0]))
-
-                        _user = User(row1[0], row1[1], User.check_password(row2[0], user.password), row1[2])
-                        update_user = "UPDATE user_account set is_active = true WHERE email = '{}'".format(user.username)
-                        cursor.execute(update_user)
-                        return _user
-                    else:
-                        return None
-        finally:
-            connection.close()
-    
-    @classmethod
-    def get_by_id(self, id):
-        connection: PGConnection = psycopg2.connect(dsn)
-        try:
-            with connection:
-                with connection.cursor() as cursor:
-                    # Para obtener datos de user_account 
-                    select_user =  "SELECT id, email, full_name FROM user_account WHERE id = '{}'".format(id)
-                    cursor.execute(select_user)
-                    row1 = cursor.fetchone()
-
-                    if row1 != None:
-                        return User(row1[0], row1[1], None, row1[2])
-                    else:
-                        return None
-        finally:
-            connection.close()
-    
-    @classmethod
-    def logout(self):
-        connection: PGConnection = psycopg2.connect(dsn)
-        try:
-            with connection:
-                with connection.cursor() as cursor:
-                    # Para cambiar el estado de la sesión en la base de datos
-                    update_user =  "UPDATE user_account set is_active = false WHERE email = '{}'".format(current_user.username)
-                    cursor.execute(update_user)
-        finally:
-            connection.close()
+class ModelUser:
 
     @classmethod
-    def create_account(self, user):
-        connection: PGConnection = psycopg2.connect(dsn)
-        try:
-            with connection:
-                with connection.cursor() as cursor:
-                    insert_user = "INSERT INTO user_account (email, full_name) VALUES ('{}', UPPER('{}'))".format(user.username, user.fullname)
-                    cursor.execute(insert_user)
-
-                    # Para obtener el id
-                    select_user_id = "SELECT id FROM user_account WHERE email = '{}'".format(user.username)
-                    cursor.execute(select_user_id)
-                    user_id = cursor.fetchone()[0]
-
-                    insert_user_pass = "INSERT INTO auth_credential (user_id, password_hash) VALUES ('{}', '{}')".format(user_id, generate_password_hash(user.password))
-                    cursor.execute(insert_user_pass)
-        finally:
-            connection.close()
-
-    @classmethod
-    def user_exits(self, email):
+    def login(cls, user):
         """
-        Método para mirar si un usuario existe
-        :param self: Description
-        :param email: Description
-        :return: user_id si existe, sino None
+        Busca el usuario por email, verifica la contraseña y devuelve un objeto User.
         """
-        connection: PGConnection = psycopg2.connect(dsn)
+        conn: PGConnection = None
         try:
-            with connection:
-                with connection.cursor() as cursor:
-                    select_user_id = "SELECT id FROM user_account WHERE email = '{}'".format(email)
-                    cursor.execute(select_user_id)
-                    return cursor.fetchone()[0]
+            conn = psycopg2.connect(dsn)
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id, email, full_name FROM user_account WHERE email = %s",
+                        (user.username,)
+                    )
+                    row1 = cursor.fetchone()
+                    if not row1:
+                        return None
+
+                    user_id, email, full_name = row1
+
+                    cursor.execute(
+                        "SELECT password_hash FROM auth_credential WHERE user_id = %s",
+                        (user_id,)
+                    )
+                    row2 = cursor.fetchone()
+                    stored_hash = row2[0] if row2 else None
+
+                    cursor.execute(
+                        "UPDATE auth_credential SET last_login_at = now() WHERE user_id = %s",
+                        (user_id,)
+                    )
+
+                    password_ok = False
+                    try:
+                        if stored_hash is not None:
+                            password_ok = User.check_password(stored_hash, user.password)
+                    except Exception:
+                        traceback.print_exc()
+                        password_ok = False
+
+                    _user = User(user_id, email, password_ok, full_name)
+
+                    if password_ok:
+                        cursor.execute(
+                            "UPDATE user_account SET is_active = true WHERE email = %s",
+                            (email,)
+                        )
+                    return _user
+        except Exception as ex:
+            print("Excepción en ModelUser.login:", ex)
+            traceback.print_exc()
+            return None
         finally:
-            connection.close()
-    
+            if conn:
+                conn.close()
+
+    @classmethod
+    def get_by_id(cls, id):
+        """
+        Busca el usuario por id y lo retorna.
+        """
+        conn: PGConnection = None
+        try:
+            conn = psycopg2.connect(dsn)
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id, email, full_name FROM user_account WHERE id = %s",
+                        (id,)
+                    )
+                    row = cursor.fetchone()
+                    if not row:
+                        return None
+                    user_id, email, full_name = row
+                    return User(user_id, email, None, full_name)
+        except Exception as ex:
+            print("Excepción en ModelUser.get_by_id:", ex)
+            traceback.print_exc()
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    @classmethod
+    def logout(cls):
+        """
+        Actualiza is_active = false para el usuario actual (current_user).
+        No lanza excepción al usuario; registra trazas si algo falla.
+        """
+        conn: PGConnection = None
+        try:
+            if not current_user or not getattr(current_user, "username", None):
+                return
+            email = current_user.username
+            conn = psycopg2.connect(dsn)
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "UPDATE user_account SET is_active = false WHERE email = %s",
+                        (email,)
+                    )
+        except Exception as ex:
+            print("Excepción en ModelUser.logout:", ex)
+            traceback.print_exc()
+        finally:
+            if conn:
+                conn.close()
+
+    @classmethod
+    def create_account(cls, user):
+        """
+        Crea una cuenta local (email, full_name) y la credencial con hash de contraseña.
+        Usa RETURNING id para evitar consultas adicionales.
+        """
+        conn: PGConnection = None
+        try:
+            conn = psycopg2.connect(dsn)
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "INSERT INTO user_account (email, full_name) VALUES (%s, UPPER(%s)) RETURNING id",
+                        (user.username, user.fullname)
+                    )
+                    row = cursor.fetchone()
+                    if not row:
+                        raise Exception("No se pudo insertar user_account")
+                    user_id = row[0]
+
+                    password_hash = generate_password_hash(user.password)
+                    cursor.execute(
+                        "INSERT INTO auth_credential (user_id, password_hash) VALUES (%s, %s)",
+                        (user_id, password_hash)
+                    )
+                    return user_id
+        except Exception as ex:
+            print("Excepción en ModelUser.create_account:", ex)
+            traceback.print_exc()
+            raise
+        finally:
+            if conn:
+                conn.close()
+
+    @classmethod
+    def user_exits(cls, email):
+        """
+        Retorna user_id si existe, sino None.
+        """
+        conn: PGConnection = None
+        try:
+            conn = psycopg2.connect(dsn)
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id FROM user_account WHERE email = %s",
+                        (email,)
+                    )
+                    row = cursor.fetchone()
+                    return row[0] if row else None
+        except Exception as ex:
+            print("Excepción en ModelUser.user_exits:", ex)
+            traceback.print_exc()
+            return None
+        finally:
+            if conn:
+                conn.close()
+
     @classmethod
     def get_by_google_id(cls, google_id):
         conn = None
@@ -148,56 +214,93 @@ class ModelUser():
         finally:
             if conn:
                 conn.close()
-        
+
     @classmethod
     def create_google_user(cls, google_id, email, fullname, picture):
-        connection: PGConnection = psycopg2.connect(dsn)
+        """
+        Inserta un usuario con oauth provider = 'google' y retorna el objeto User usando get_by_google_id.
+        """
+        conn: PGConnection = None
         try:
-            cursor = connection.cursor()
-            sql = "INSERT INTO user_account (email, full_name, google_id, profile_pic, oauth_provider) VALUES ('{}', '{}', '{}', '{}', 'google')".format(email, fullname, google_id, picture)
-            cursor.execute(sql)
-            # Obtener el usuario recien creado
-            return cls.get_by_google_id(google_id)
+            conn = psycopg2.connect(dsn)
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "INSERT INTO user_account (email, full_name, google_id, profile_pic, oauth_provider) "
+                        "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                        (email, fullname, google_id, picture, "google")
+                    )
+                    row = cursor.fetchone()
+                    if not row:
+                        raise Exception("No se pudo insertar user_account (google)")
+                    return cls.get_by_google_id(google_id)
         except Exception as ex:
-            raise Exception(ex)
+            print("Excepción en ModelUser.create_google_user:", ex)
+            traceback.print_exc()
+            raise
         finally:
-            connection.close()
-    
+            if conn:
+                conn.close()
+
     @classmethod
     def link_google_account(cls, user_id, google_id, picture):
-        connection: PGConnection = psycopg2.connect(dsn)
+        """
+        Vincula una cuenta existente con google_id y actualiza profile_pic y oauth_provider.
+        """
+        conn: PGConnection = None
         try:
-            cursor = connection.cursor()
-            sql = "UPDATE user_account SET google_id = '{}', profile_pic = '{}', oauth_provider = 'google' WHERE id = '{}'".format(google_id, picture, user_id)
-            cursor.execute(sql)
+            conn = psycopg2.connect(dsn)
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "UPDATE user_account SET google_id = %s, profile_pic = %s, oauth_provider = %s WHERE id = %s",
+                        (google_id, picture, "google", user_id)
+                    )
         except Exception as ex:
-            raise Exception(ex)
+            print("Excepción en ModelUser.link_google_account:", ex)
+            traceback.print_exc()
+            raise
         finally:
-            connection.close()
-    
+            if conn:
+                conn.close()
+
     @classmethod
     def get_by_email(cls, email):
-        connection: PGConnection = psycopg2.connect(dsn)
+        """
+        Obtiene usuario por email (incluyendo password_hash si existe) y regresa un objeto User.
+        """
+        conn: PGConnection = None
         try:
-            cursor = connection.cursor()
-            sql = "SELECT id, email, full_name, google_id, profile_pic, oauth_provider FROM user_account WHERE email = '{}'".format(email)
-            cursor.execute(sql)
-            row = cursor.fetchone()
-            
-            if row:
-                #Consulta para la contraseña
-                select_user_passhash =  "SELECT password_hash FROM auth_credential WHERE user_id = '{}'".format(row[0])
-                cursor.execute(select_user_passhash)
-                row2 = cursor.fetchone()
+            conn = psycopg2.connect(dsn)
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id, email, full_name, google_id, profile_pic, oauth_provider FROM user_account WHERE email = %s",
+                        (email,)
+                    )
+                    row = cursor.fetchone()
+                    if not row:
+                        return None
 
-                user = User(row[0], row[1], row2[0], row[2])
-                user.google_id = row[3] if len(row) > 4 else None
-                user.profile_pic = row[4] if len(row) > 5 else None
-                user.oauth_provider = row[5] if len(row) > 6 else None
-                return user
-            return None
+                    user_id, user_email, full_name, google_id_db, profile_pic, oauth_provider = row
+
+                    cursor.execute(
+                        "SELECT password_hash FROM auth_credential WHERE user_id = %s",
+                        (user_id,)
+                    )
+                    row2 = cursor.fetchone()
+                    password_hash = row2[0] if row2 else None
+
+                    user = User(user_id, user_email, password_hash, full_name)
+                    user.google_id = google_id_db if len(row) > 4 else None
+                    user.profile_pic = profile_pic if len(row) > 5 else None
+                    user.oauth_provider = oauth_provider if len(row) > 6 else None
+
+                    return user
         except Exception as ex:
-            raise Exception(ex)
+            print("Excepción en ModelUser.get_by_email:", ex)
+            traceback.print_exc()
+            raise
         finally:
-            connection.close()
-        
+            if conn:
+                conn.close()
