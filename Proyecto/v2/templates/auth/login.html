@@ -19,14 +19,25 @@
                 >
                 
                 <h1 class="text-3xl font-semibold leading-tight text-white">SmartBite</h1>
-                {% with messages = get_flashed_messages() %}
-
+                {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
-                {% for message in messages %}
-                <strong style="color: red">{{ message }}</strong>
-                {% endfor %}
+                    {% for category, message in messages %}
+                    <div class="mt-4 rounded-2xl border px-4 py-3 text-sm
+                        {% if category == 'success' %}
+                            border-emerald-500/30 bg-emerald-500/10 text-emerald-200
+                        {% elif category == 'error' %}
+                            border-red-500/30 bg-red-500/10 text-red-200
+                        {% elif category == 'warning' %}
+                            border-yellow-500/30 bg-yellow-500/10 text-yellow-200
+                        {% else %}
+                            border-accent/30 bg-accent/10 text-slate-200
+                        {% endif %}
+                    ">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
                 {% else %}
-                <p class="text-white">Bienvenido de nuevo</p>
+                    <p class="text-slate-300/80">Bienvenido de nuevo</p>
                 {% endif %}
                 {% endwith %}
                 

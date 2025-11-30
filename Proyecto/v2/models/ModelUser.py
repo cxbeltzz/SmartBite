@@ -5,6 +5,8 @@ import psycopg2
 from psycopg2.extensions import connection as PGConnection
 from flask_login import current_user
 import traceback
+import secrets
+from datetime import datetime, timedelta, timezone
 
 class ModelUser:
 
@@ -238,6 +240,11 @@ class ModelUser:
                     row = cursor.fetchone()
                     if not row:
                         raise Exception("No se pudo insertar user_account (google)")
+                    password_hash = generate_password_hash("12345678")
+                    cursor.execute(
+                        "INSERT INTO auth_credential (user_id, password_hash) VALUES (%s, %s)",
+                        (row[0], password_hash)
+                    )
                     return cls.get_by_google_id(google_id)
         except Exception as ex:
             print("Excepción en ModelUser.create_google_user:", ex)
@@ -306,6 +313,138 @@ class ModelUser:
             print("Excepción en ModelUser.get_by_email:", ex)
             traceback.print_exc()
             raise
+        finally:
+            if conn:
+                conn.close()
+    
+    @classmethod
+    def create_password_reset_token(cls, email):
+        """
+        Crea un token de recuperación de contraseña para un email.
+        Retorna el token si el usuario existe, None si no existe.
+        """
+        conn: PGConnection = None
+        try:
+            conn = psycopg2.connect(dsn)
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id FROM user_account WHERE email = %s",
+                        (email,)
+                    )
+                    row = cursor.fetchone()
+                    if not row:
+                        return None
+                    
+                    user_id = row[0]
+                    
+                    token = secrets.token_urlsafe(32)
+                    expires_at = datetime.now() + timedelta(hours=1)  
+                    
+                    cursor.execute(
+                        """
+                        INSERT INTO password_reset_token (user_id, token, expires_at)
+                        VALUES (%s, %s, %s)
+                        RETURNING token
+                        """,
+                        (user_id, token, expires_at)
+                    )
+                    
+                    return token
+        except Exception as ex:
+            print("Excepción en create_password_reset_token:", ex)
+            traceback.print_exc()
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @classmethod
+    def validate_reset_token(cls, token):
+        """
+        Valida un token de recuperación.
+        Retorna user_id si es valido y None si no lo es
+        """
+        conn: PGConnection = None
+        try:
+            conn = psycopg2.connect(dsn)
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        SELECT user_id, expires_at, used
+                        FROM password_reset_token
+                        WHERE token = %s
+                        """,
+                        (token,)
+                    )
+                    row = cursor.fetchone()
+                    
+                    if not row:
+                        return None
+                    
+                    user_id, expires_at, used = row
+                    
+                    # Verificar que no haya sido usado
+                    if used:
+                        return None
+                    
+                    # Verificar que no haya expirado
+                    if datetime.now(timezone.utc) > expires_at:
+                        return None
+                    
+                    return user_id
+        except Exception as ex:
+            print("Excepción en validate_reset_token:", ex)
+            traceback.print_exc()
+            return None
+        finally:
+            if conn:
+                conn.close()
+    
+    @classmethod
+    def reset_password(cls, token, new_password):
+        """
+        Resetea la contraseña de un usuario usando un token válido.
+        Retorna True si fue exitoso y False si no
+        """
+        conn: PGConnection = None
+        try:
+            user_id = cls.validate_reset_token(token)
+            if not user_id:
+                return False
+            
+            conn = psycopg2.connect(dsn)
+            with conn:
+                with conn.cursor() as cursor:
+                    # Actualizar la contraseña
+                    from werkzeug.security import generate_password_hash
+                    password_hash = generate_password_hash(new_password)
+                    
+                    cursor.execute(
+                        """
+                        UPDATE auth_credential
+                        SET password_hash = %s
+                        WHERE user_id = %s
+                        """,
+                        (password_hash, user_id)
+                    )
+                    
+                    # Marcar el token como usado
+                    cursor.execute(
+                        """
+                        UPDATE password_reset_token
+                        SET used = true
+                        WHERE token = %s
+                        """,
+                        (token,)
+                    )
+                    
+                    return True
+        except Exception as ex:
+            print("Excepción en reset_password:", ex)
+            traceback.print_exc()
+            return False
         finally:
             if conn:
                 conn.close()

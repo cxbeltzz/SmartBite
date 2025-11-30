@@ -31,22 +31,32 @@ class UserValidator:
 
     @staticmethod
     def check_username(username):
+        """
+        Mira si un nombre de usuario cumple con una longitud mínima de 3 caracteres
+        """
         if len(username) < 3:
             raise ValueError("Nombre de usuario muy corto")
     
     @staticmethod
     def check_password(password):
+        """
+        Mira si la contraseña dada cumple con ciertos parámetros para ser válida
+        """
         if len(password) < 8: # Por ahora voy a validar solo la longitud de la contraseña, pero toca poner más validaciones, como caracteres especiales y asi
             raise ValueError("Contraseña muy corta. Debe tener mínimo 8 caracteres")
     
     @staticmethod
     def check_password_equals(password, confirm_password):
+        """
+        Método que confirma si las dos contraseñas dadas en el registro son iguales
+        """
         if password != confirm_password:
             return  False
         return True
 
     @staticmethod
     def check_fullname(fullname):
+        "Mira si el nombre completo dado es válido"
         _fullname = fullname.split(" ")
         if len(_fullname) < 3:
             raise ValueError("Debe poner su nombre completo")

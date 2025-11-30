@@ -571,25 +571,97 @@ def register():
     return render_template("auth/register.html")
 
 @app.route("/forgot-password", methods=["GET", "POST"])
-@logout_required
 def forgot_password():
     if request.method == "POST":
-        email = request.form.get("email")
+        email = request.form.get("email", "").strip()
         
         if not email:
-            flash("Por favor ingresa tu correo electrónico", "error")
+            flash("Ingresa tu correo electrónico")
             return redirect(url_for('forgot_password'))
+        
+        if not UserValidator.check_username_log(email):
+            flash("Correo inválido")
+            return redirect(url_for('forgot_password'))
+        normalized_email = UserValidator.username_log(email)
+
+        token = ModelUser.create_password_reset_token(normalized_email)
+        
+        if token:
+            reset_url = url_for('reset_password', token=token, _external=True)
+            
+            try:
+                msg = Message(
+                    subject="Recuperación de contraseña - SmartBite",
+                    recipients=[normalized_email + "@unal.edu.co"],
+                    html=f"""
+                    <html>
+                    <body style="font-family: Arial, sans-serif; background-color: #080b2c; color: #e2e8f0; padding: 20px;">
+                        <div style="max-width: 600px; margin: 0 auto; background-color: #101534; border-radius: 12px; padding: 30px; border: 1px solid rgba(255,255,255,0.1);">
+                            <h1 style="color: #a855f7; margin-bottom: 20px;">Recuperación de Contraseña</h1>
+                            <p style="margin-bottom: 20px;">Hola,</p>
+                            <p style="margin-bottom: 20px;">Recibimos una solicitud para restablecer la contraseña de tu cuenta en SmartBite.</p>
+                            <p style="margin-bottom: 30px;">Haz clic en el botón de abajo para crear una nueva contraseña. Este enlace expirará en 1 hora.</p>
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="{reset_url}" style="background-color: #a855f7; color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; display: inline-block; font-weight: bold;">
+                                    Restablecer Contraseña
+                                </a>
+                            </div>
+                            <p style="margin-top: 30px; font-size: 14px; color: #94a3b8;">Si no solicitaste este cambio, puedes ignorar este email de forma segura.</p>
+                            <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 30px 0;">
+                            <p style="font-size: 12px; color: #64748b; text-align: center;">SmartBite - Recomendaciones Nutricionales</p>
+                        </div>
+                    </body>
+                    </html>
+                    """
+                )
+                mail.send(msg)
+                flash("Se ha enviado un enlace de recuperación a tu correo electrónico")
+            except Exception as e:
+                print(f"Error enviando email: {e}")
+                traceback.print_exc()
+                flash("Error al enviar el email. Por favor intenta más tarde.")
         else:
-            if UserValidator.check_username_log(email):
-                user_id = ModelUser.user_exits(email)
-                if user_id != None:
-                    p = 0
-                else:
-                    flash("No Hay Una Cuenta Asociada A Este Correo", "error")
-            else:
-                flash("Correo Inválido")
-                return redirect(url_for('forgot_password'))
+            # Voy a hacer que se muestre el mismo mensaje aunque el usuario no exista :)
+            flash("Si existe una cuenta con ese correo, recibirás un enlace de recuperación")
+        
+        return redirect(url_for('login'))
+    
     return render_template("auth/forgot_password.html")
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    user_id = ModelUser.validate_reset_token(token)
+    
+    if not user_id:
+        flash("El enlace de recuperación es inválido o ha expirado")
+        return redirect(url_for('forgot_password'))
+    
+    if request.method == "POST":
+        new_password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        
+        if not new_password or not confirm_password:
+            flash("Por favor completa todos los campos")
+            return render_template("auth/reset_password.html", token=token)
+        
+        if not UserValidator.check_password_equals(new_password, confirm_password):
+            flash("Las contraseñas no coinciden")
+            return render_template("auth/reset_password.html", token=token)
+        try:
+            UserValidator.check_password(new_password)
+        except Exception as e:
+            flash(str(e))
+            return render_template("auth/reset_password.html", token=token)
+        
+        # Resetear la contraseña
+        if ModelUser.reset_password(token, new_password):
+            flash("Tu contraseña ha sido actualizada exitosamente")
+            return redirect('/login')
+        else:
+            flash("Error al actualizar la contraseña. Por favor intenta de nuevo.")
+            return render_template("auth/reset_password.html", token=token)
+    
+    return render_template("auth/reset_password.html", token=token)
 
 google_bp = make_google_blueprint(
     client_id = config.Config.GOOGLE_OAUTH_CLIENT_ID,
@@ -636,7 +708,7 @@ def google_logged_in(blueprint, token):
             else:
                 user = ModelUser.create_google_user(
                     google_id = google_id,
-                    username = UserValidator.username_log(email),
+                    email = UserValidator.username_log(email),
                     fullname = name,
                     picture = picture
                 )
