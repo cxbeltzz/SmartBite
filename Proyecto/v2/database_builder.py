@@ -3,6 +3,7 @@ import csv
 import re
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
+from urllib.parse import quote
 
 try:
     import psycopg2
@@ -221,10 +222,9 @@ def populate_database(csv_path: Path, dsn: str) -> None:
 
 def main() -> None:
     csv_path = Path("dataset.csv")
-    dsn = "postgresql://postgres:password@db:5432/v2"
-
+    #dsn = "postgresql://postgres:password@db:5432/v2"
+    dsn = "postgresql://postgres:" + quote("postsoft%22") + "@localhost:5433/modelo" # Pruebas fuera del contenedor
     populate_database(csv_path, dsn)
-
 
 if __name__ == "__main__":
     main()

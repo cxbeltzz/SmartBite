@@ -75,14 +75,16 @@ class ModelUser:
             with conn:
                 with conn.cursor() as cursor:
                     cursor.execute(
-                        "SELECT id, email, full_name FROM user_account WHERE id = %s",
+                        "SELECT id, email, full_name, profile_pic FROM user_account WHERE id = %s",
                         (id,)
                     )
                     row = cursor.fetchone()
                     if not row:
                         return None
-                    user_id, email, full_name = row
-                    return User(user_id, email, None, full_name)
+                    user_id, email, full_name, profile_pic = row
+                    user = User(user_id, email, None, full_name)
+                    user.profile_pic = profile_pic  # ← Agrega esto
+                    return user
         except Exception as ex:
             print("Excepción en ModelUser.get_by_id:", ex)
             traceback.print_exc()
@@ -176,6 +178,9 @@ class ModelUser:
 
     @classmethod
     def get_by_google_id(cls, google_id):
+        """
+        Busca el usuario por el google_id y luego lo retrna
+        """
         conn = None
         try:
             conn = psycopg2.connect(dsn)

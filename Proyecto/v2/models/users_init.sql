@@ -231,3 +231,53 @@ CREATE  TABLE user_saved_plan (
 ALTER TABLE user ADD COLUMN google_id VARCHAR(255) UNIQUE;
 ALTER TABLE user ADD COLUMN profile_pic VARCHAR(500);
 ALTER TABLE user ADD COLUMN oauth_provider VARCHAR(50);
+
+
+CREATE TABLE user_saved_recipe (
+    id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY,
+    user_id BIGINT NOT NULL,
+    recipe_id VARCHAR(100),
+    recipe_name VARCHAR(300) NOT NULL,
+    recipe_data JSONB NOT NULL,
+    notes TEXT,
+    is_favorite BOOLEAN DEFAULT FALSE,
+    saved_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    CONSTRAINT user_saved_recipe_pkey PRIMARY KEY (id),
+    CONSTRAINT user_saved_recipe_user_fkey FOREIGN KEY (user_id) 
+        REFERENCES user_account(id) ON DELETE CASCADE,
+    CONSTRAINT user_saved_recipe_unique UNIQUE (user_id, recipe_id)
+);
+
+CREATE INDEX idx_user_saved_recipe_user ON user_saved_recipe(user_id);
+CREATE INDEX idx_user_saved_recipe_favorite ON user_saved_recipe(user_id, is_favorite);
+
+CREATE TABLE user_meal_plan (
+    id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY,
+    user_id BIGINT NOT NULL,
+    plan_name VARCHAR(200),
+    plan_data JSONB NOT NULL,
+    user_profile JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    is_active BOOLEAN DEFAULT FALSE,
+    CONSTRAINT user_meal_plan_pkey PRIMARY KEY (id),
+    CONSTRAINT user_meal_plan_user_fkey FOREIGN KEY (user_id)
+        REFERENCES user_account(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_user_meal_plan_user ON user_meal_plan(user_id);
+CREATE INDEX idx_user_meal_plan_active ON user_meal_plan(user_id, is_active);
+
+CREATE TABLE password_reset_token (
+    id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY,
+    user_id BIGINT NOT NULL,
+    token VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used BOOLEAN DEFAULT FALSE NOT NULL,
+    CONSTRAINT password_reset_token_pkey PRIMARY KEY (id),
+    CONSTRAINT password_reset_token_user_fkey FOREIGN KEY (user_id) 
+        REFERENCES user_account(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_password_reset_token ON password_reset_token(token);
+CREATE INDEX idx_password_reset_user ON password_reset_token(user_id);

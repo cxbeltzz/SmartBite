@@ -3,37 +3,50 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 import numpy as np
-from flask import Flask, render_template, request, redirect, flash, url_for, session
+from flask import Flask, render_template, request, redirect, flash, url_for, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+import secrets
+from datetime import datetime
 import model
 import config
+import traceback
 from dotenv import load_dotenv
 load_dotenv()
 
+from urllib.parse import quote # Por una cuestión de un "%" en mi base de datos local
+
 # Modelos
 from models.ModelUser import ModelUser
+from models.ModelSavedRecipe import ModelSavedRecipe
 
 # Entidades
 from models.entities.User import User
 
 # Utilidades
-from utils.username_format import username
 from validators.user_validator import UserValidator
+from utils.decorators import logout_required
 
 # Para manejar las sesiones
-from flask_login import LoginManager, login_user, logout_user, login_required
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_dance.consumer import oauth_authorized
 from flask_dance.consumer.storage.sqla import SQLAlchemyStorage
 
 #POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://postgres:password@db:5432/v2")
-POSTGRES_DSN = "postgresql://postgres:password@db:5432/v2"
+# POSTGRES_DSN = "postgresql://postgres:password@db:5432/v2"
+POSTGRES_DSN = "postgresql://postgres:" + quote("postsoft%22") + "@localhost:5433/modelo" # Pruebas fuera del contenedor
 
 app = Flask(__name__)
 
 # Para la base de datos de los usuarios
 app.config['SQLALCHEMY_DATABASE_URI'] = config.dsn
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Para los emails
+app.config.from_object(config.Config)
+mail = Mail(app)
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 app.secret_key = config.Config.SECRET_KEY
@@ -296,7 +309,7 @@ def recommend_meals(calories_per_meal: float, meals_per_day: int) -> Dict[str, L
     return grouped
 
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/home", methods=["GET", "POST"])
 def index():
     error = None
     result = None
@@ -310,6 +323,10 @@ def index():
         "plan": "maintain",
         "meals_per_day": 3,
     }
+    
+    # Variable para saber si mostrar opciones de guardado
+    show_save_options = current_user.is_authenticated if hasattr(current_user, 'is_authenticated') else False
+    
     if request.method == "POST":
         try:
             user_values = {
@@ -324,6 +341,7 @@ def index():
             activity_index = max(0, min(user_values["activity_index"], len(ACTIVITY_ORDER) - 1))
             activity_key = ACTIVITY_ORDER[activity_index]
             user_values["activity"] = activity_key
+            
             user = UserInput(
                 age=user_values["age"],
                 height_cm=user_values["height_cm"],
@@ -333,27 +351,17 @@ def index():
                 plan=user_values["plan"],
                 meals_per_day=user_values["meals_per_day"],
             )
-            _get_dataframe()  # ensure cache
+            
+            _get_dataframe()
             bmi, bmi_status = calculate_bmi(user.weight_kg, user.height_cm)
             tdee = calculate_tdee(user)
             targets = plan_targets(tdee)
             selected_plan = targets[user.plan]
             calories_per_meal = selected_plan["calories"] / max(user.meals_per_day, 1)
             recommendations = recommend_meals(calories_per_meal, user.meals_per_day)
-            result = {
-                "bmi": bmi,
-                "bmi_status": bmi_status,
-                "tdee": round(tdee),
-                "targets": targets,
-                "selected_plan_key": user.plan,
-                "meals_per_day": user.meals_per_day,
-                "recommendations": recommendations,
-            }
-            result["selected_plan"] = selected_plan
-            result["user"] = user
-            result["macro_total"] = compute_macro_targets(selected_plan["calories"])
-            result["macro_per_meal"] = compute_macro_targets(calories_per_meal)
-            flat_recommendations: List[dict] = []
+            
+            # Construir meal_labels y flat_recommendations
+            flat_recommendations = []
             meal_labels = {}
             meal_order = list(recommendations.keys())
             for index, (meal_key, recipes) in enumerate(recommendations.items()):
@@ -364,9 +372,33 @@ def index():
                     enriched["meal_key"] = meal_key
                     enriched["meal_label"] = label
                     flat_recommendations.append(enriched)
-            result["meal_labels"] = meal_labels
-            result["flat_recommendations"] = flat_recommendations
-            result["meal_order"] = meal_order
+            
+            # CONSTRUIR RESULT UNA SOLA VEZ CON TODA LA INFORMACIÓN
+            result = {
+                "bmi": bmi,
+                "bmi_status": bmi_status,
+                "tdee": round(tdee),
+                "targets": targets,
+                "selected_plan_key": user.plan,
+                "selected_plan": selected_plan,
+                "meals_per_day": user.meals_per_day,
+                "recommendations": recommendations,
+                "user": {  # ← user como diccionario, NO como objeto UserInput
+                    "age": user.age,
+                    "height_cm": user.height_cm,
+                    "weight_kg": user.weight_kg,
+                    "gender": user.gender,
+                    "activity": user.activity,
+                    "plan": user.plan,
+                    "meals_per_day": user.meals_per_day
+                },
+                "macro_total": compute_macro_targets(selected_plan["calories"]),
+                "macro_per_meal": compute_macro_targets(calories_per_meal),
+                "meal_labels": meal_labels,
+                "flat_recommendations": flat_recommendations,
+                "meal_order": meal_order
+            }
+            
             composition_payload = {
                 "active": True,
                 "meal_labels": meal_labels,
@@ -376,8 +408,12 @@ def index():
                 "macro_targets_day": result["macro_total"],
                 "macro_targets_meal": result["macro_per_meal"],
             }
-        except Exception as exc:  # pylint: disable=broad-except
+                    
+        except Exception as exc:
             error = str(exc)
+            import traceback
+            traceback.print_exc()
+    
     return render_template(
         "index.html",
         activities=ACTIVITY_LEVELS,
@@ -388,6 +424,7 @@ def index():
         error=error,
         result=result,
         composer_payload=composition_payload,
+        show_save_options=show_save_options
     )
 
 
@@ -462,8 +499,8 @@ def load_user(id):
     return ModelUser.get_by_id(id)
 
 @app.route("/login", methods=["GET", "POST"])
+@logout_required
 def login():
-    
     if request.method == "POST":
         email = request.form.get("email").replace(" ", "")
         password = request.form.get("password")
@@ -476,20 +513,21 @@ def login():
             if logged_user != None:
                 if logged_user.password:
                     login_user(logged_user)
-                    return redirect('/')
+                    return redirect(url_for('index'))
                 else:
-                    flash("Contraseña Inválida")
+                    flash("Contraseña Inválida", "error")
             else:
-                flash("Usuario Inválido")
+                flash("Usuario Inválido", "error")
         else:
-            flash("Correo Inválido")
+            flash("Correo Inválido", "error")
     return render_template("auth/login.html")
 
 @app.route("/logout")
 def logout():
     ModelUser.logout()
     logout_user()
-    return redirect("/")
+    session.pop('_flashes', None)
+    return redirect(url_for('index'))
 
 @app.route("/protected")
 @login_required
@@ -497,6 +535,7 @@ def protected():
     return "<h1>Esta es una vista protegida, solo para usuarios autenticados.</h1>"
 
 @app.route("/register", methods=["GET", "POST"])
+@logout_required
 def register():
     if request.method == "POST":
         fullname = request.form.get("name")
@@ -507,48 +546,49 @@ def register():
         
         # Validaciones
         if not all([fullname, email, password, confirm_password]):
-            flash("Completa todos los campos")
-            return redirect("/register")
+            flash("Completa todos los campos", "error")
+            return redirect(url_for('register'))
         if UserValidator.check_username_log(email):
             registration = User(None, UserValidator.username_log(email), password, fullname)
             try:
                 UserValidator.validate_register(registration)
                 if UserValidator.check_password_equals(password, confirm_password):
                     if not terms:
-                        flash("Debes aceptar los términos y condiciones")
-                        return redirect('/register')
+                        flash("Debes aceptar los términos y condiciones", "error")
+                        return redirect(url_for('register'))
                     else:
                         ModelUser.create_account(registration)
-                        return redirect('/login')
+                        return redirect(url_for('login'))
                 else:
-                    flash("Las contraseñas no coinciden")
-                    return redirect('/register')
+                    flash("Las contraseñas no coinciden", "error")
+                    return redirect(url_for('register'))
             except Exception as VE:
                 flash(str(VE))
-                return redirect('/register')
+                return redirect(url_for('register'))
         else:
-            flash("Solo usuarios de la UNAL")
-            return redirect('/register')
+            flash("Solo usuarios de la UNAL", "error")
+            return redirect(url_for('register'))
     return render_template("auth/register.html")
 
 @app.route("/forgot-password", methods=["GET", "POST"])
+@logout_required
 def forgot_password():
     if request.method == "POST":
         email = request.form.get("email")
         
         if not email:
-            flash("Por favor ingresa tu correo electrónico")
-            return redirect('/forgot-password"')
+            flash("Por favor ingresa tu correo electrónico", "error")
+            return redirect(url_for('forgot_password'))
         else:
             if UserValidator.check_username_log(email):
                 user_id = ModelUser.user_exits(email)
                 if user_id != None:
                     p = 0
                 else:
-                    flash("No Hay Una Cuenta Asociada A Este Correo")
+                    flash("No Hay Una Cuenta Asociada A Este Correo", "error")
             else:
                 flash("Correo Inválido")
-                return redirect('/forgot-password"')
+                return redirect(url_for('forgot_password'))
     return render_template("auth/forgot_password.html")
 
 google_bp = make_google_blueprint(
@@ -566,17 +606,15 @@ app.register_blueprint(google_bp, url_prefix = "/login")
 
 @oauth_authorized.connect_via(google_bp)
 def google_logged_in(blueprint, token):
-    print("SIGNAL EJECUTADO: oauth_authorized se disparó")
+    """Obtiene el nombre completo y el email por medio de Google OAuth para iniciar sesión"""
 
     if not token:
-        print("No hay token")
-        flash("Error: token no recibido de Google.")
+        flash("Error: token no recibido de Google.", "error")
         return False
 
     resp = blueprint.session.get("/oauth2/v2/userinfo")
     if not resp.ok:
-        print("No se pudo obtener la informacion")
-        flash("Error al obtener información de Google.")
+        flash("Error al obtener información de Google.", "error")
         return False
 
     info = resp.json()
@@ -586,22 +624,16 @@ def google_logged_in(blueprint, token):
     picture = info.get("picture", "")
 
     if not google_id or not email:
-        print("Respuesta imcompleta")
-        flash("Respuesta incompleta de Google.")
+        flash("Respuesta incompleta de Google.", "error")
         return False
 
     try:
-        print("Se ejecutó el try")
         user = ModelUser.get_by_google_id(google_id)
-        print("Se ejecutó el getr_by google id")
         if not user:
-            print("No hay usuario")
             user = ModelUser.get_by_email(UserValidator.username_log(email))
             if user:
-                print("Se consulto el usuario por email")
                 ModelUser.link_google_account(user.id, google_id, picture)
             else:
-                print("Se creó un usuario porque no existia")
                 user = ModelUser.create_google_user(
                     google_id = google_id,
                     username = UserValidator.username_log(email),
@@ -610,15 +642,226 @@ def google_logged_in(blueprint, token):
                 )
 
         login_user(user)
-        print("Se inicio sesion")
-        flash(f"Bienvenido {user.fullname}!")
+        flash(f"Bienvenido {user.fullname}!", "success")
     except Exception as exc:
-        print("Error interno")
-        flash("Error interno al autenticar con Google.")
+        flash("Error interno al autenticar con Google.", "error")
     return False
 
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    """Vista principal del dashboard para usuarios autenticados"""
+    try:
+        user_id = current_user.id
+        
+        # Obtener recetas guardadas
+        saved_recipes = ModelSavedRecipe.get_user_saved_recipes(user_id)
+        favorites_count = sum(1 for recipe in saved_recipes if recipe['is_favorite'])
+        
+        # Obtener planes nutricionales
+        meal_plans = ModelSavedRecipe.get_user_meal_plans(user_id)
+        active_plan = ModelSavedRecipe.get_active_meal_plan(user_id)
+        
+        return render_template(
+            "dashboard.html",
+            saved_recipes=saved_recipes,
+            favorites_count=favorites_count,
+            meal_plans=meal_plans,
+            active_plan=active_plan
+        )
+    except Exception as ex:
+        flash("Error al cargar el dashboard", "error")
+        return redirect("/")
+
+@app.route("/dashboard/save-recipe", methods=["POST"])
+@login_required
+def save_recipe():
+    """Guarda una receta en el perfil del usuario"""
+    try:
+        data = request.get_json(force=True, silent=True)
+        print("DEBUG - Datos recibidos:", type(data), str(data)[:200])
+
+        if data is None:
+            return jsonify({"success": False, "message": "JSON no recibido"}), 400
+
+        # para aceptar ambos formatos
+        if "recipe_data" in data:
+            recipe_data = data["recipe_data"]
+            notes = data.get("notes", "")
+        else:
+            recipe_data = data
+            notes = ""
+
+        if not isinstance(recipe_data, dict):
+            return jsonify({"success": False, "message": "recipe_data debe ser un objeto"}), 400
+
+        saved_id = ModelSavedRecipe.save_recipe(
+            user_id=current_user.id,
+            recipe_data=recipe_data,
+            notes=notes
+        )
+
+        return jsonify({
+            "success": True,
+            "saved_id": saved_id,
+            "message": "Receta guardada exitosamente"
+        }), 200
+
+    except Exception as ex:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": str(ex)
+        }), 500 
+
+
+@app.route("/dashboard/toggle-favorite/<int:saved_recipe_id>", methods=["POST"])
+@login_required
+def toggle_favorite(saved_recipe_id):
+    """Marca o desmarca una receta como favorita"""
+    try:
+        is_favorite = ModelSavedRecipe.toggle_favorite(current_user.id, saved_recipe_id)
+        
+        if is_favorite is None:
+            return jsonify({
+                "success": False,
+                "message": "Receta no encontrada"
+            }), 404
+        
+        return jsonify({
+            "success": True,
+            "is_favorite": is_favorite
+        }), 200
+    except Exception as ex:
+        print(f"Error al marcar favorito: {ex}")
+        return jsonify({
+            "success": False,
+            "message": str(ex)
+        }), 500
+
+
+@app.route("/dashboard/delete-recipe/<int:saved_recipe_id>", methods=["POST"])
+@login_required
+def delete_saved_recipe(saved_recipe_id):
+    """Elimina una receta guardada"""
+    try:
+        success = ModelSavedRecipe.delete_saved_recipe(current_user.id, saved_recipe_id)
+        
+        if not success:
+            return jsonify({
+                "success": False,
+                "message": "Receta no encontrada"
+            }), 404
+        
+        return jsonify({
+            "success": True,
+            "message": "Receta eliminada exitosamente"
+        }), 200
+    except Exception as ex:
+        print(f"Error al eliminar receta: {ex}")
+        return jsonify({
+            "success": False,
+            "message": str(ex)
+        }), 500
+
+
+@app.route("/dashboard/save-plan", methods=["POST"])
+@login_required
+def save_meal_plan():
+    """Guarda un plan nutricional completo"""
+    try:
+        data = request.get_json()
+        plan_data = data.get('plan_data')
+        user_profile = data.get('user_profile')
+        plan_name = data.get('plan_name', f"Plan {datetime.now().strftime('%d/%m/%Y')}")
+        
+        plan_id = ModelSavedRecipe.save_meal_plan(
+            user_id=current_user.id,
+            plan_data=plan_data,
+            user_profile=user_profile,
+            plan_name=plan_name
+        )
+        
+        return jsonify({
+            "success": True,
+            "plan_id": plan_id,
+            "message": "Plan guardado exitosamente"
+        }), 200
+    except Exception as ex:
+        print(f"Error al guardar plan: {ex}")
+        return jsonify({
+            "success": False,
+            "message": str(ex)
+        }), 500
+
+
+@app.route("/dashboard/plan/<int:plan_id>")
+@login_required
+def view_meal_plan(plan_id):
+    """Vista detallada de un plan nutricional"""
+    try:
+        plans = ModelSavedRecipe.get_user_meal_plans(current_user.id)
+        plan = next((p for p in plans if p['id'] == plan_id), None)
+        
+        if not plan:
+            flash("Plan no encontrado")
+            return redirect(url_for('dashboard'))
+        
+        # Reconstruir el resultado para usar el template de index
+        result = plan['plan_data']
+        result['user'] = plan['user_profile']
+        
+        return render_template(
+            "meal_plan_view.html",
+            plan=plan,
+            result=result,
+            activities=ACTIVITY_LEVELS,
+            plans=WEIGHT_PLANS
+        )
+    except Exception as ex:
+        print(f"Error al ver plan: {ex}")
+        flash("Error al cargar el plan")
+        return redirect(url_for('dashboard'))
+
+@app.route("/dashboard/activate-plan/<int:plan_id>", methods=["POST"])
+@login_required
+def activate_meal_plan(plan_id):
+    """Activa un plan nutricional existente"""
+    try:
+        success = ModelSavedRecipe.activate_meal_plan(current_user.id, plan_id)
+
+        if not success:
+            message = "Plan no encontrado o no autorizado"
+            if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"success": False, "message": message}), 404
+            flash(message)
+            return redirect(url_for("dashboard"))
+
+        message = "Plan activado exitosamente"
+        if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"success": True, "message": message})
+        flash(message)
+        return redirect(url_for("dashboard"))
+
+    except Exception as ex:
+        # Debug
+        traceback.print_exc()
+        message = "Error al activar el plan"
+        if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"success": False, "message": str(ex)}), 500
+        flash(message)
+        return redirect(url_for("dashboard"))
+
+
+# Hacer de esta la vista principal
+@app.route("/")
+def main():
+    return render_template("main.html")
+
+
 def status_401(error):
-    return redirect("/login")
+    return redirect(url_for('login'))
 
 # Queda pendiente hacer una vista más elegante para cuando pase esto
 def status_404(error):

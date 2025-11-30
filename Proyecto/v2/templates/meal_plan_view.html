@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8">
+  <section class="rounded-3xl border border-white/10 bg-white/5 px-8 py-10 shadow-[0_40px_120px_-60px_rgba(167,139,250,0.7)] backdrop-blur">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div class="space-y-2">
+        <a href="{{ url_for('dashboard') }}" class="inline-flex items-center gap-2 text-sm text-accentSoft hover:text-accent transition">
+          ←  Volver al Dashboard
+        </a>
+        <h1 class="text-3xl font-semibold text-white">{{ plan.plan_name or 'Plan Nutricional' }}</h1>
+        <p class="text-sm text-slate-300/80">Creado el {{ plan.created_at.strftime('%d de %B de %Y') }}</p>
+      </div>
+      
+      {% if not plan.is_active %}
+      <form method="POST" action="{{ url_for('activate_meal_plan', plan_id=plan.id) }}">
+        <button type="submit" class="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition hover:bg-accent/80">
+          Activar este plan
+        </button>
+      </form>
+      {% else %}
+      <span class="rounded-full bg-accent/20 px-6 py-3 text-sm font-semibold text-accent">
+        Plan Activo
+      </span>
+      {% endif %}
+    </div>
+  </section>
+
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
+      <p class="text-xs uppercase tracking-wide text-slate-300/70">Edad</p>
+      <p class="text-2xl font-semibold text-white">{{ result.user.age }} años</p>
+    </div>
+    <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
+      <p class="text-xs uppercase tracking-wide text-slate-300/70">Peso</p>
+      <p class="text-2xl font-semibold text-white">{{ result.user.weight_kg }} kg</p>
+    </div>
+    <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
+      <p class="text-xs uppercase tracking-wide text-slate-300/70">Altura</p>
+      <p class="text-2xl font-semibold text-white">{{ result.user.height_cm }} cm</p>
+    </div>
+    <div class="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
+      <p class="text-xs uppercase tracking-wide text-slate-300/70">Comidas/día</p>
+      <p class="text-2xl font-semibold text-white">{{ result.user.meals_per_day }}</p>
+    </div>
+  </div>
+
+  <div class="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+    <div class="flex flex-wrap gap-4">
+      <div class="flex-1 min-w-[180px] rounded-2xl border border-white/10 bg-white/10 px-4 py-4">
+        <p class="text-xs uppercase tracking-wide text-slate-300/70">BMI</p>
+        <p class="text-2xl font-semibold text-white">{{ result.bmi }}</p>
+        <p class="text-xs text-slate-300/80 mt-1">{{ result.bmi_status }}</p>
+      </div>
+      <div class="flex-1 min-w-[180px] rounded-2xl border border-white/10 bg-white/10 px-4 py-4">
+        <p class="text-xs uppercase tracking-wide text-slate-300/70">TDEE</p>
+        <p class="text-2xl font-semibold text-white">{{ result.tdee }} kcal</p>
+        <p class="text-xs text-slate-300/80 mt-1">{{ activities[result.user.activity][0] }}</p>
+      </div>
+      <div class="flex-1 min-w-[180px] rounded-2xl border border-white/10 bg-white/10 px-4 py-4">
+        <p class="text-xs uppercase tracking-wide text-slate-300/70">Plan</p>
+        <p class="text-2xl font-semibold text-white">{{ result.selected_plan.label }}</p>
+        <p class="text-xs text-slate-300/80 mt-1">{{ result.selected_plan.calories }} kcal/día</p>
+      </div>
+    </div>
+  </div>
+
+  {% for meal_key, recipes in result.recommendations.items() %}
+  {% set meal_label = result.meal_labels[meal_key] if result.meal_labels and meal_key in result.meal_labels else meal_key|title %}
+  <div class="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur space-y-5">
+    <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <div>
+        <h4 class="text-lg font-semibold text-white">{{ meal_label }}</h4>
+        <p class="text-xs text-slate-300/80">{{ recipes|length }} recetas disponibles</p>
+      </div>
+    </div>
+    
+    {% if recipes %}
+    <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      {% for recipe in recipes %}
+      <article class="flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-surface/70 backdrop-blur">
+        <div class="relative h-44 w-full overflow-hidden">
+          {% if recipe.RecipeImages %}
+          <img src="{{ recipe.RecipeImages[0] }}" alt="{{ recipe.Name }}" class="h-full w-full object-cover">
+          <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+          {% else %}
+          <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/40 via-fuchsia-500/30 to-purple-600/40"></div>
+          {% endif %}
+          <div class="absolute bottom-3 left-3 flex flex-wrap gap-2 text-[0.7rem] text-white/90">
+            <span class="rounded-full bg-white/20 px-3 py-1">{{ recipe.Calories|round(0) }} kcal</span>
+            {% if recipe.TotalTime %}
+            <span class="rounded-full bg-white/20 px-3 py-1">{{ recipe.TotalTime }}</span>
+            {% endif %}
+          </div>
+        </div>
+        
+        <div class="flex flex-1 flex-col gap-4 p-5 text-sm text-slate-200/90">
+          <div class="space-y-1">
+            <h3 class="text-lg font-semibold text-white">{{ recipe.Name }}</h3>
+            <p class="text-xs uppercase tracking-wide text-slate-400/80">{{ meal_label }}</p>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-2 text-[0.7rem] text-slate-200/80">
+            <span class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">Proteína {{ recipe.ProteinContent|round(1) }} g</span>
+            <span class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">Carbohidratos {{ recipe.CarbohydrateContent|round(1) }} g</span>
+            <span class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">Grasas {{ recipe.FatContent|round(1) }} g</span>
+            <span class="rounded-2xl border border-white/10 bg-white/5 px-3 py-2">Azúcares {{ recipe.SugarContent|round(1) }} g</span>
+          </div>
+          
+          {% if recipe.RecipeIngredientParts %}
+          <details class="group/accordion rounded-2xl border border-white/10 bg-white/5 p-4">
+            <summary class="flex cursor-pointer items-center justify-between text-sm font-medium text-white">
+              <span>Ver detalles</span>
+              <span class="text-xs text-slate-300 transition group-open/accordion:rotate-180">&#9662;</span>
+            </summary>
+            <div class="mt-4 space-y-4 text-sm text-slate-200/80">
+              <div>
+                <p class="text-[0.7rem] uppercase tracking-wide text-slate-400/80">Ingredientes</p>
+                <ul class="mt-2 list-disc list-inside space-y-1">
+                  {% for ingredient in recipe.RecipeIngredientParts[:8] %}
+                  <li>{{ ingredient }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+              {% if recipe.RecipeInstructions %}
+              <div>
+                <p class="text-[0.7rem] uppercase tracking-wide text-slate-400/80">Instrucciones</p>
+                <ol class="mt-2 list-decimal list-inside space-y-1">
+                  {% for step in recipe.RecipeInstructions[:5] %}
+                  <li>{{ step }}</li>
+                  {% endfor %}
+                </ol>
+              </div>
+              {% endif %}
+            </div>
+          </details>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

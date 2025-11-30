@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}SmartBite{% endblock %}
+
+{% block navbar %}
+
+{% endblock %}
+
+{% block content %}
+<header class="mx-auto mt-8 grid max-w-7xl grid-cols-1 items-center gap-12 px-4 md:mt-16 md:grid-cols-2">
+    <div>
+      <p class="mb-3 text-sm uppercase tracking-[.2em] text-gray-400">Tu plan, tus macros</p>
+      <h1 class="text-5xl font-extrabold leading-tight sm:text-6xl text-white">
+        <span class="block text-gray-200">Come mejor</span>
+        <span class="mt-2 block">con recomendaciones <span class="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-fuchsia-600">inteligentes</span>.</span>
+      </h1>
+      <p class="mt-6 max-w-xl text-lg text-gray-300">Analizamos nutrientes, ingredientes y tus objetivos para sugerirte recetas que se ajustan a ti: calorías, macros, presupuesto y restricciones.</p>
+      <div class="mt-8 flex flex-wrap items-center gap-4">
+        <a href="{{ url_for('index') }}" class="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-fuchsia-800/20 transition hover:brightness-110">
+          Empezar ahora <i data-lucide="plus-circle" class="h-5 w-5"></i>
+        </a>
+      </div>
+      <div class="mt-14 grid gap-4 sm:grid-cols-2">
+        <div class="group rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur transition hover:bg-white/[0.06]">
+            <div class="mb-2 flex items-center gap-2 text-gray-200">
+              <div class="grid h-8 w-8 place-items-center rounded-lg bg-white/10"><i data-lucide="flame" class="h-5 w-5"></i></div>
+              <h3 class="text-sm font-semibold">Cierra tus macros</h3>
+            </div>
+            <p class="text-sm text-gray-300">Elige meta (perder, mantener, ganar) y ajustamos kcal y P/C/G.</p>
+        </div>
+        <div class="group rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur transition hover:bg-white/[0.06]">
+            <div class="mb-2 flex items-center gap-2 text-gray-200">
+              <div class="grid h-8 w-8 place-items-center rounded-lg bg-white/10"><i data-lucide="leaf" class="h-5 w-5"></i></div>
+              <h3 class="text-sm font-semibold">Respeta tus restricciones</h3>
+            </div>
+            <p class="text-sm text-gray-300">Filtramos por alergias, vegan, sin gluten, halal y más.</p>
+        </div>
+        <div class="group rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur transition hover:bg-white/[0.06]">
+            <div class="mb-2 flex items-center gap-2 text-gray-200">
+              <div class="grid h-8 w-8 place-items-center rounded-lg bg-white/10"><i data-lucide="dollar-sign" class="h-5 w-5"></i></div>
+              <h3 class="text-sm font-semibold">Cuida el bolsillo</h3>
+            </div>
+            <p class="text-sm text-gray-300">Ordena por precio por ración y tiempo de preparación.</p>
+        </div>
+        <div class="group rounded-3xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur transition hover:bg-white/[0.06]">
+            <div class="mb-2 flex items-center gap-2 text-gray-200">
+              <div class="grid h-8 w-8 place-items-center rounded-lg bg-white/10"><i data-lucide="utensils-crossed" class="h-5 w-5"></i></div>
+              <h3 class="text-sm font-semibold">Variedad real</h3>
+            </div>
+            <p class="text-sm text-gray-300">Reranking que evita repetición de ingredientes.</p>
+        </div>
+      </div>
+    </div>
+    <aside>
+        <div class="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
+            <h3 class="text-lg font-semibold text-white">¿Qué incluye?</h3>
+            <ul class="mt-4 space-y-3 text-gray-200">
+              <li class="flex items-center gap-3">
+                <i data-lucide="check" class="h-5 w-5 flex-none"></i>
+                <span>Recomendación por nutrientes + contenido</span>
+              </li>
+              <li class="flex items-center gap-3">
+                <i data-lucide="check" class="h-5 w-5 flex-none"></i>
+                <span>Filtro por alergias y dietas</span>
+              </li>
+              <li class="flex items-center gap-3">
+                <i data-lucide="check" class="h-5 w-5 flex-none"></i>
+                <span>Reranking por macros, precio y diversidad</span>
+              </li>
+              <li class="flex items-center gap-3">
+                <i data-lucide="check" class="h-5 w-5 flex-none"></i>
+                <span>Panel con progreso semanal</span>
+              </li>
+            </ul>
+            <div class="mt-6 rounded-2xl bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 p-4 text-sm text-gray-300">
+              Conecta tu perfil, define metas y genera tu plan semanal en un click.
+            </div>
+        </div>
+    </aside>
+</header>
+{% endblock %}

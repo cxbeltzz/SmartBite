@@ -14,9 +14,6 @@
         <h1 class="text-4xl font-semibold leading-tight text-white">Panel de recomendaciones personalizadas</h1>
         <p class="text-sm text-slate-200/80">Ajusta tus datos, genera un plan nutricional equilibrado y descubre recetas con imágenes inspiradas en tu estilo de vida.</p>
         <div class="flex flex-wrap items-center gap-3 pt-2">
-          <a href="#recommendation-form" class="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent/80">
-            Ir al formulario principal
-          </a>
           <a href="{{ url_for('custom_recommendations') }}" class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm font-semibold text-white transition hover:border-accent/50 hover:bg-accent/10">
             Modo personalizado&nbsp;→
           </a>
@@ -87,6 +84,7 @@
         Generar recomendaciones
       </button>
     </div>
+    </br>
     <div class="grid gap-6 lg:grid-cols-3">
       <div class="space-y-2">
         <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="age">Edad</label>
@@ -101,23 +99,36 @@
         <input id="weight_kg" name="weight_kg" type="number" step="0.1" min="40" max="200" value="{{ defaults.weight_kg }}" class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50" required>
       </div>
     </div>
+    </br>
     <div class="grid gap-6 md:grid-cols-2">
       <div class="space-y-2">
         <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="gender">Género</label>
-        <select id="gender" name="gender" class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50">
-          <option value="male" {% if defaults.gender == 'male' %}selected{% endif %}>Masculino</option>
-          <option value="female" {% if defaults.gender == 'female' %}selected{% endif %}>Femenino</option>
+        <select
+          id="gender"
+          name="gender"
+          class="w-full rounded-2xl border border-white/10 
+                bg-slate-900 text-white
+                appearance-none
+                px-4 py-3 text-sm
+                focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50">
+          <option class="bg-slate-900 text-white" value="male">Masculino</option>
+          <option class="bg-slate-900 text-white" value="female">Femenino</option>
         </select>
       </div>
       <div class="space-y-2">
         <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="plan">Plan de peso</label>
-        <select id="plan" name="plan" class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50">
+        <select id="plan" name="plan" class="w-full rounded-2xl border border-white/10 
+                bg-slate-900 text-white
+                appearance-none
+                px-4 py-3 text-sm
+                focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50">
           {% for key, (label, _, _) in plans.items() %}
           <option value="{{ key }}" {% if defaults.plan == key %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
     </div>
+    </br>
     <div class="grid gap-6 lg:grid-cols-2">
       <div class="space-y-3">
         <label class="block text-xs font-semibold uppercase tracking-wide text-slate-300/80" for="activity">Actividad</label>
@@ -276,6 +287,21 @@
                 {% endif %}
               </div>
             </details>
+            {% if show_save_options %}
+            <div class="mt-4 pt-4 border-t border-white/10">
+              <button 
+                data-meal-key="{{ meal_key }}"
+                data-recipe-index="{{ loop.index0 }}"
+                class="w-full inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-accent/50 hover:bg-accent/10 save-recipe-btn"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                Guardar receta
+              </button>
+            </div>
+            {% endif %}
+
           </div>
         </article>
         {% endfor %}
@@ -285,6 +311,25 @@
       {% endif %}
     </div>
     {% endfor %}
+    {% if show_save_options and result %}
+    <section class="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur space-y-4">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h3 class="text-xl font-semibold text-white">¿Te gusta este plan?</h3>
+          <p class="text-sm text-slate-300/80">Guárdalo en tu dashboard para acceder a él cuando quieras.</p>
+        </div>
+        <button 
+          onclick="saveMealPlan()"
+          class="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition hover:bg-accent/80"
+        >
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Guardar plan completo
+        </button>
+      </div>
+    </section>
+    {% endif %}
       <div class="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur space-y-6">
         <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -335,7 +380,12 @@
           </div>
         </div>
       </div>
+      <script id="composer-data" type="application/json">
+        {{ composer_payload|tojson|replace('</', '<\\/')|safe }}
+      </script>
       <script id="composer-data" type="application/json">{{ composer_payload|tojson|safe }}</script>
+      <script id="all-recipes-data" type="application/json">{{ result.recommendations|tojson|safe }}</script>
+
   </section>
   {% endif %}
 </div>
@@ -770,4 +820,191 @@ if (activityInput && activitySelected) {
   activityInput.dispatchEvent(new Event('input'));
 }
 </script>
+
+{% if show_save_options %}
+<script>
+let allRecipes = {};
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    const recipesScript = document.getElementById('all-recipes-data');
+    if (recipesScript) {
+      allRecipes = JSON.parse(recipesScript.textContent);
+      console.log('Recetas cargadas:', Object.keys(allRecipes).length, 'categorías');
+    }
+  } catch (e) {
+    console.error('Error cargando recetas:', e);
+  }
+  
+  document.addEventListener('click', function(e) {
+    const button = e.target.closest('.save-recipe-btn');
+    if (button) {
+      e.preventDefault();
+      handleSaveRecipe(button);
+    }
+  });
+});
+
+async function handleSaveRecipe(button) {
+  if (button.disabled) return;
+  
+  button.disabled = true;
+  const originalContent = button.innerHTML;
+  
+  button.innerHTML = `
+    <svg class="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+    Guardando...
+  `;
+
+  try {
+    const mealKey = button.getAttribute('data-meal-key');
+    const recipeIndex = parseInt(button.getAttribute('data-recipe-index'));
+    
+    console.log('Buscando receta:', mealKey, 'índice:', recipeIndex);
+    
+    if (!allRecipes[mealKey]) {
+      throw new Error('No se encontró la categoría de comida: ' + mealKey);
+    }
+    
+    const recipeData = allRecipes[mealKey][recipeIndex];
+    
+    if (!recipeData) {
+      throw new Error('No se encontró la receta en el índice: ' + recipeIndex);
+    }
+    
+    console.log('Guardando receta:', recipeData.Name);
+    
+    const response = await fetch('/dashboard/save-recipe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ recipe_data: recipeData })
+    });
+
+    const text = await response.text();
+    console.log('Respuesta servidor:', response.status, text.substring(0, 200));
+    
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (e) {
+      console.error('Error parseando JSON:', e);
+      throw new Error('Respuesta inválida del servidor');
+    }
+
+    if (!response.ok) {
+      button.innerHTML = originalContent;
+      button.disabled = false;
+      alert('Error al guardar: ' + (data.message || `HTTP ${response.status}`));
+      return;
+    }
+
+    if (data.success) {
+      button.innerHTML = `
+        <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+        </svg>
+        Guardada
+      `;
+      button.classList.remove('bg-white/10', 'border-white/20');
+      button.classList.add('bg-emerald-500/20', 'border-emerald-500/50', 'text-emerald-300');
+      
+      showNotification('Receta guardada en tu dashboard');
+    } else {
+      button.innerHTML = originalContent;
+      button.disabled = false;
+      alert('Error: ' + (data.message || 'Error desconocido'));
+    }
+  } catch (error) {
+    console.error('Error completo:', error);
+    button.innerHTML = originalContent;
+    button.disabled = false;
+    alert('Error al guardar la receta: ' + error.message);
+  }
+}
+
+function showNotification(message) {
+  const notification = document.createElement('div');
+  notification.className = 'fixed top-4 right-4 bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-xl z-50';
+  notification.style.cssText = 'animation: slideIn 0.3s ease-out;';
+  notification.innerHTML = `
+    <div class="flex items-center gap-2">
+      <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+      </svg>
+      <span class="font-semibold">${message}</span>
+    </div>
+  `;
+  document.body.appendChild(notification);
+  setTimeout(() => {
+    notification.style.animation = 'slideOut 0.3s ease-in';
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
+}
+
+async function saveMealPlan() {
+  const planName = prompt('Nombre para este plan (opcional):');
+  if (planName === null) return;
+  
+  try {
+    const resultData = {{ result|tojson|safe }};
+    
+    if (!resultData || !resultData.user) {
+      alert('Error: No se puede guardar el plan. Genera primero un plan válido.');
+      return;
+    }
+    
+    const userProfile = {
+      age: resultData.user.age,
+      height_cm: resultData.user.height_cm,
+      weight_kg: resultData.user.weight_kg,
+      gender: resultData.user.gender,
+      activity: resultData.user.activity,
+      plan: resultData.user.plan,
+      meals_per_day: resultData.user.meals_per_day
+    };
+    
+    const response = await fetch('/dashboard/save-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plan_data: resultData,
+        user_profile: userProfile,
+        plan_name: planName || `Plan ${new Date().toLocaleDateString()}`
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showNotification('Plan guardado exitosamente');
+      /*setTimeout(() => {
+        if (confirm('¿Quieres ver el plan en tu dashboard?')) {
+          window.location.href = '/dashboard';
+        }
+      }, 500);
+      */
+    } else {
+      alert('Error: ' + data.message);
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al guardar el plan: ' + error.message);
+  }
+}
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+  }
+`;
+document.head.appendChild(style);
+</script>
+{% endif %}
 {% endblock %}
